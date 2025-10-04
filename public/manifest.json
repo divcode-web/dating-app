@@ -1,0 +1,10 @@
+{
+  "name": "Dating App",
+  "short_name": "Dating",
+  "description": "Find your perfect match",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ec4899",
+  "icons": []
+}
