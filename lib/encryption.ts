@@ -50,7 +50,7 @@ export async function encryptMessage(message: string): Promise<string> {
     combined.set(new Uint8Array(encryptedData), iv.length);
 
     // Convert to base64 for storage
-    return btoa(String.fromCharCode(...combined));
+    return btoa(String.fromCharCode.apply(null, Array.from(combined)));
   } catch (error) {
     console.error('Encryption error:', error);
     // Fallback: return original message if encryption fails
