@@ -121,10 +121,14 @@ export default function ProfilePage() {
                 <h1 className="text-3xl font-bold flex items-center gap-2">
                   {profileData.full_name}
                   {profileData.is_verified && (
-                    <CheckCircle className="w-6 h-6 text-blue-500" title="Verified" />
+                    <span title="Verified">
+                      <CheckCircle className="w-6 h-6 text-blue-500" />
+                    </span>
                   )}
                   {profileData.is_premium && (
-                    <Crown className="w-6 h-6 text-yellow-500" title="Premium Member" />
+                    <span title="Premium Member">
+                      <Crown className="w-6 h-6 text-yellow-500" />
+                    </span>
                   )}
                 </h1>
                 <p className="text-gray-600 mt-2">{profileData.bio}</p>
@@ -325,10 +329,14 @@ export default function ProfilePage() {
                     <h1 className="text-3xl font-bold flex items-center gap-2">
                       {profileData.full_name}
                       {profileData.is_verified && (
-                        <CheckCircle className="w-6 h-6 text-blue-500" title="Verified" />
+                        <span title="Verified">
+                          <CheckCircle className="w-6 h-6 text-blue-500" />
+                        </span>
                       )}
                       {profileData.is_premium && (
-                        <Crown className="w-6 h-6 text-yellow-500" title="Premium Member" />
+                        <span title="Premium Member">
+                          <Crown className="w-6 h-6 text-yellow-500" />
+                        </span>
                       )}
                     </h1>
                     <p className="text-gray-600 dark:text-gray-400 mt-2">{profileData.bio}</p>
@@ -422,10 +430,14 @@ export default function ProfilePage() {
             <h1 className="text-3xl font-bold flex items-center gap-3">
               My Profile
               {profileData?.is_verified && (
-                <CheckCircle className="w-6 h-6 text-blue-500" title="Verified" />
+                <span title="Verified">
+                  <CheckCircle className="w-6 h-6 text-blue-500" />
+                </span>
               )}
               {profileData?.is_premium && (
-                <Crown className="w-6 h-6 text-yellow-500" title="Premium Member" />
+                <span title="Premium Member">
+                  <Crown className="w-6 h-6 text-yellow-500" />
+                </span>
               )}
             </h1>
             <p className="text-gray-600 mt-2">
