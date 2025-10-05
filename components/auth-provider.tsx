@@ -64,11 +64,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
 
         if (event === 'SIGNED_IN') {
-          toast.success('Welcome back!')
-          window.location.href = '/home'
+          // Don't redirect if already on admin portal
+          const isAdminPortal = window.location.pathname.startsWith('/admin')
+          if (!isAdminPortal) {
+            toast.success('Welcome back!')
+            // Small delay to allow any route changes to complete
+            setTimeout(() => {
+              if (!window.location.pathname.startsWith('/admin')) {
+                window.location.href = '/home'
+              }
+            }, 100)
+          }
         } else if (event === 'SIGNED_OUT') {
+          // Redirect to admin login if signing out from admin
+          const isAdminPortal = window.location.pathname.startsWith('/admin')
           toast.success('Signed out successfully')
-          window.location.href = '/'
+          window.location.href = isAdminPortal ? '/admin/login' : '/'
         }
       }
     )

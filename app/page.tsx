@@ -19,7 +19,7 @@ export default function Home() {
           .from('user_profiles')
           .select('full_name, photos')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (!data || !data.full_name || !data.photos?.length) {
           // New user - redirect to onboarding

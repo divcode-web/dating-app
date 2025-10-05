@@ -39,16 +39,24 @@ export default function AdminLogin() {
         .from("admin_users")
         .select("*")
         .eq("id", authData.user.id)
-        .single();
+        .maybeSingle();
 
-      if (adminError || !adminData) {
-        // Not an admin, sign them out
+      if (adminError) {
+        console.error("Error checking admin status:", adminError);
         await supabase.auth.signOut();
-        toast.error("Access denied. Admin privileges required.");
+        toast.error("Database error. Please contact support.");
         return;
       }
 
-      toast.success("Welcome back, Admin!");
+      if (!adminData) {
+        // Not an admin, sign them out
+        console.log("User not found in admin_users:", authData.user.email);
+        await supabase.auth.signOut();
+        toast.error("Access denied. You must be added as an admin first.");
+        return;
+      }
+
+      // Navigate immediately - auth-provider has delay to check pathname
       router.push("/admin/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);

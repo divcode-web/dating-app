@@ -363,7 +363,7 @@ export function AuthForm() {
 
                       <div className="space-y-2">
                         <Label htmlFor="gender" className="text-gray-700">Gender</Label>
-                        <Select onValueChange={setGender}>
+                        <Select value={gender} onValueChange={setGender}>
                           <SelectTrigger className="h-12 border-gray-200 focus:border-pink-300 focus:ring-pink-200">
                             <SelectValue placeholder="Select gender" />
                           </SelectTrigger>

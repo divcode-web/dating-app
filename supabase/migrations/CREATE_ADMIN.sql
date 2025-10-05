@@ -10,7 +10,7 @@ SELECT
     email,
     created_at
 FROM auth.users
-WHERE email = 'your-email@example.com';
+WHERE email = 'soyobipelumi@gmail.com';
 
 -- ============================================
 -- STEP 2: Copy the UUID from above and paste it in the command below
@@ -18,7 +18,7 @@ WHERE email = 'your-email@example.com';
 -- ============================================
 
 INSERT INTO admin_users (id, role, permissions)
-VALUES ('paste-uuid-here', 'super_admin', ARRAY['all']);
+VALUES ('1f84c9f7-da65-4779-af99-ce772812c60c', 'super_admin', ARRAY['all']);
 
 -- ============================================
 -- EXAMPLE (don't use this, use your own UUID):
@@ -37,7 +37,7 @@ SELECT
     au.created_at
 FROM admin_users au
 JOIN auth.users u ON au.id = u.id
-WHERE au.id = 'paste-your-uuid-here';  -- Replace with your UUID
+WHERE au.id = '1f84c9f7-da65-4779-af99-ce772812c60c';  -- Replace with your UUID
 
 -- ============================================
 -- OPTIONAL: Add another admin (if you're a super_admin)

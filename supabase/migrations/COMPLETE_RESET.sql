@@ -166,12 +166,23 @@ CREATE TABLE message_limits (
     UNIQUE(user_id, date)
 );
 
+-- Admin Users Table (Create FIRST before blocked_users and reports)
+CREATE TABLE admin_users (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    role TEXT DEFAULT 'admin', -- admin, super_admin
+    permissions TEXT[], -- array of permission strings
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+);
+
 -- Blocked Users Table
 CREATE TABLE blocked_users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    blocker_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    blocked_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    blocker_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+    blocked_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+    blocked_by_admin BOOLEAN DEFAULT FALSE,
     reason TEXT,
+    admin_id UUID REFERENCES admin_users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(blocker_id, blocked_id)
 );
@@ -182,26 +193,17 @@ CREATE TYPE report_status AS ENUM ('pending', 'reviewed', 'resolved', 'dismissed
 
 CREATE TABLE reports (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    reporter_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    reported_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    reporter_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+    reported_user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
     reported_message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
     report_type report_type NOT NULL,
     reason TEXT NOT NULL,
     status report_status DEFAULT 'pending',
     admin_notes TEXT,
-    reviewed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    reviewed_by UUID REFERENCES admin_users(id) ON DELETE SET NULL,
     reviewed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Admin Users Table
-CREATE TABLE admin_users (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    role TEXT DEFAULT 'admin', -- admin, super_admin
-    permissions TEXT[], -- array of permission strings
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
 -- ============================================
@@ -398,13 +400,14 @@ CREATE POLICY "Admins can update reports"
     USING (EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid()));
 
 -- Admin Users Policies
-CREATE POLICY "Admins can view admin users"
+-- Allow users to read their own admin record (prevents infinite recursion)
+CREATE POLICY "Users can view own admin record"
     ON admin_users FOR SELECT
-    USING (EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid()));
+    USING (auth.uid() = id);
 
 CREATE POLICY "Super admins can manage admins"
     ON admin_users FOR ALL
-    USING (EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid() AND role = 'super_admin'));
+    USING (auth.uid() = id AND role = 'super_admin');
 
 -- ============================================
 -- STEP 7: CREATE FUNCTIONS

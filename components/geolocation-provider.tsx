@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { LocationPermission } from './location-permission'
+import { useAuth } from './auth-provider'
 
 interface Location {
   lat: number
@@ -31,12 +32,24 @@ interface GeolocationProviderProps {
 }
 
 export function GeolocationProvider({ children }: GeolocationProviderProps) {
+  const { user, loading } = useAuth() // Get user from auth context
   const [location, setLocation] = useState<Location | null>(null)
   const [permissionStatus, setPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle')
   const [showPermissionDialog, setShowPermissionDialog] = useState(false)
 
   // Check if we already have location permission on mount
+  // ONLY if user is logged in AND not on admin portal
   useEffect(() => {
+    // Don't request location if user is not logged in or still loading
+    if (!user || loading) {
+      return
+    }
+
+    // Don't request location for admin portal
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+      return
+    }
+
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' }).then((result) => {
         if (result.state === 'granted') {
@@ -66,7 +79,7 @@ export function GeolocationProvider({ children }: GeolocationProviderProps) {
     } else {
       setShowPermissionDialog(true)
     }
-  }, [])
+  }, [user, loading])
 
   const requestLocation = async (): Promise<void> => {
     return new Promise((resolve) => {

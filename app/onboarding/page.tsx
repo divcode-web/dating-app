@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { updateUserProfile, uploadPhoto } from "@/lib/api";
 import { Upload, X, ArrowLeft, ArrowRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import toast from "react-hot-toast";
 
 const TOTAL_STEPS = 4;
@@ -238,19 +239,22 @@ export default function OnboardingPage() {
             </div>
             <div>
               <Label htmlFor="gender">Gender</Label>
-              <select
-                id="gender"
+              <Select
                 value={formData.gender}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, gender: e.target.value }))
-                }
-                className="w-full px-4 py-3 border rounded-md text-lg"
+                onValueChange={(value) => {
+                  console.log("Gender selected:", value);
+                  setFormData((prev) => ({ ...prev, gender: value }));
+                }}
               >
-                <option value="">Select gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
+                <SelectTrigger className="w-full text-lg h-14">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Female">Female</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         );

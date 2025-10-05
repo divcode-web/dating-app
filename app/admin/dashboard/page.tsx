@@ -49,6 +49,20 @@ interface VerificationRequest {
   photos: string[];
 }
 
+interface UserProfile {
+  id: string;
+  full_name: string;
+  date_of_birth: string;
+  gender: string;
+  location_city: string;
+  is_premium: boolean;
+  is_verified: boolean;
+  created_at: string;
+  last_active: string;
+  photos: string[];
+  blocked_by_admin?: boolean;
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -64,6 +78,8 @@ export default function AdminDashboard() {
   });
   const [reports, setReports] = useState<Report[]>([]);
   const [verifications, setVerifications] = useState<VerificationRequest[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     checkAdminAccess();
@@ -82,11 +98,20 @@ export default function AdminDashboard() {
         .from("admin_users")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (error || !adminData) {
+      if (error) {
+        console.error("Error checking admin status:", error);
         await supabase.auth.signOut();
-        toast.error("Access denied");
+        toast.error("Database error. Please contact support.");
+        router.push("/admin/login");
+        return;
+      }
+
+      if (!adminData) {
+        console.log("User is not in admin_users table:", user.email);
+        await supabase.auth.signOut();
+        toast.error("Access denied. Admin privileges required.");
         router.push("/admin/login");
         return;
       }
@@ -102,7 +127,7 @@ export default function AdminDashboard() {
   };
 
   const loadDashboardData = async () => {
-    await Promise.all([loadStats(), loadReports(), loadVerifications()]);
+    await Promise.all([loadStats(), loadReports(), loadVerifications(), loadUsers()]);
   };
 
   const loadStats = async () => {
@@ -190,6 +215,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, date_of_birth, gender, location_city, is_premium, is_verified, created_at, last_active, photos")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      // Load blocked users
+      const { data: blocked } = await supabase
+        .from("blocked_users")
+        .select("blocked_id")
+        .eq("blocked_by_admin", true);
+
+      const blockedSet = new Set(blocked?.map(b => b.blocked_id) || []);
+      setBlockedUsers(blockedSet);
+      setUsers(data || []);
+    } catch (error) {
+      console.error("Error loading users:", error);
+    }
+  };
+
   const handleReportAction = async (reportId: string, status: string) => {
     try {
       const { error } = await supabase
@@ -231,6 +280,51 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to update verification");
+    }
+  };
+
+  const handleBlockUser = async (userId: string, reason: string = "Blocked by admin") => {
+    try {
+      // Insert admin block record (blocker_id = admin, blocked_id = user)
+      const { error } = await supabase
+        .from("blocked_users")
+        .insert({
+          blocker_id: adminUser.id,
+          blocked_id: userId,
+          blocked_by_admin: true,
+          reason,
+          admin_id: adminUser.id,
+        });
+
+      if (error) throw error;
+
+      toast.success("User blocked successfully");
+      await loadUsers();
+    } catch (error: any) {
+      console.error("Error blocking user:", error);
+      if (error.code === '23505') {
+        toast.error("User is already blocked");
+      } else {
+        toast.error("Failed to block user");
+      }
+    }
+  };
+
+  const handleUnblockUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from("blocked_users")
+        .delete()
+        .eq("blocked_id", userId)
+        .eq("blocked_by_admin", true);
+
+      if (error) throw error;
+
+      toast.success("User unblocked successfully");
+      await loadUsers();
+    } catch (error) {
+      console.error("Error unblocking user:", error);
+      toast.error("Failed to unblock user");
     }
   };
 
@@ -319,8 +413,11 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="reports" className="space-y-6">
+        <Tabs defaultValue="users" className="space-y-6">
           <TabsList className="bg-white/10 border-white/20">
+            <TabsTrigger value="users" className="data-[state=active]:bg-white/20">
+              Users ({stats.totalUsers})
+            </TabsTrigger>
             <TabsTrigger value="reports" className="data-[state=active]:bg-white/20">
               Reports ({stats.pendingReports})
             </TabsTrigger>
@@ -328,6 +425,102 @@ export default function AdminDashboard() {
               Verifications ({stats.pendingVerifications})
             </TabsTrigger>
           </TabsList>
+
+          {/* Users Tab */}
+          <TabsContent value="users">
+            <Card className="p-6 bg-white/10 backdrop-blur-lg border-white/20">
+              <h2 className="text-xl font-bold text-white mb-4">All Users</h2>
+              <div className="space-y-4">
+                {users.length === 0 ? (
+                  <p className="text-gray-400 text-center py-8">No users found</p>
+                ) : (
+                  users.map((user) => (
+                    <div
+                      key={user.id}
+                      className="border border-white/10 rounded-lg p-4 hover:bg-white/5 transition-colors"
+                    >
+                      <div className="flex items-start gap-4">
+                        {/* User Photo */}
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
+                          {user.photos && user.photos[0] ? (
+                            <img src={user.photos[0]} alt={user.full_name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl text-white/50">
+                              {user.full_name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* User Info */}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-semibold text-white">{user.full_name}</h3>
+                            {user.is_verified && (
+                              <CheckCircle className="w-5 h-5 text-blue-500" title="Verified" />
+                            )}
+                            {user.is_premium && (
+                              <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full">
+                                Premium
+                              </span>
+                            )}
+                            {blockedUsers.has(user.id) && (
+                              <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full">
+                                Blocked
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-300">
+                            <div>
+                              <span className="text-gray-400">Gender:</span> {user.gender}
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Age:</span>{" "}
+                              {new Date().getFullYear() - new Date(user.date_of_birth).getFullYear()}
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Location:</span> {user.location_city || "Not set"}
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Joined:</span>{" "}
+                              {new Date(user.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
+
+                          <div className="mt-2 text-xs text-gray-400">
+                            Last active: {new Date(user.last_active).toLocaleString()}
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          {blockedUsers.has(user.id) ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleUnblockUser(user.id)}
+                              className="bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                            >
+                              Unblock
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => handleBlockUser(user.id)}
+                              variant="outline"
+                              className="border-red-500/50 text-red-400 hover:bg-red-500/20"
+                            >
+                              <Ban className="w-4 h-4 mr-1" />
+                              Block
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </TabsContent>
 
           {/* Reports Tab */}
           <TabsContent value="reports">

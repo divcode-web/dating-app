@@ -5,8 +5,9 @@ import { UserProfile, UserSettings, Like, Match, Message } from './types';
 export async function updateUserProfile(userId: string, profile: Partial<UserProfile>) {
   const { data, error } = await supabase
     .from('user_profiles')
-    .upsert([{ id: userId, ...profile }]);
-  
+    .update(profile)
+    .eq('id', userId);
+
   if (error) throw error;
   return data;
 }
@@ -17,7 +18,12 @@ export async function getUserProfile(userId: string) {
     .select('*')
     .eq('id', userId)
     .single();
-  
+
+  // If no profile exists, return null instead of throwing
+  if (error && error.code === 'PGRST116') {
+    return null;
+  }
+
   if (error) throw error;
   return data;
 }
