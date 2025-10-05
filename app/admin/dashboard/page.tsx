@@ -615,11 +615,20 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       {v.verification_video_url && (
-                        <video
-                          src={v.verification_video_url}
-                          controls
-                          className="w-full rounded-lg mb-3"
-                        />
+                        <div className="mb-3">
+                          <video
+                            src={v.verification_video_url}
+                            controls
+                            preload="metadata"
+                            className="w-full rounded-lg bg-black"
+                            style={{ maxHeight: '400px' }}
+                          >
+                            <source src={v.verification_video_url} type="video/mp4" />
+                            <source src={v.verification_video_url} type="video/webm" />
+                            <source src={v.verification_video_url} type="video/quicktime" />
+                            Your browser does not support the video tag.
+                          </video>
+                        </div>
                       )}
                       <div className="flex gap-2">
                         <Button

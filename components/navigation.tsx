@@ -174,9 +174,9 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
         {/* Mobile menu - slides from right */}
         {isMenuOpen && (
           <div className="fixed inset-0 z-[100] md:hidden">
-            {/* Backdrop */}
+            {/* Backdrop - Fully opaque */}
             <div
-              className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+              className="absolute inset-0 bg-black/95 animate-in fade-in duration-200"
               onClick={() => setIsMenuOpen(false)}
             />
 

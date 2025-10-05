@@ -154,6 +154,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: { message: "Supabase not configured" } as AuthError };
     }
 
+    // Check if email can be used for signup
+    try {
+      const { data: checkResult, error: checkError } = await supabase.rpc('can_signup_with_email', {
+        email_to_check: email
+      });
+
+      if (checkError) {
+        console.error('Signup check error:', checkError);
+        // Continue with signup if check fails (fallback)
+      } else if (checkResult && !checkResult.can_signup) {
+        return {
+          error: {
+            message: checkResult.message || 'Cannot signup with this email',
+            status: 400
+          } as AuthError
+        };
+      }
+    } catch (err) {
+      console.error('Error checking signup eligibility:', err);
+      // Continue with signup if check fails
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -162,8 +184,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
 
-    // Profile creation is now handled by database trigger
-    // No need to create profile manually on client side
+    // Log signup attempt
+    if (supabase) {
+      const { error: logError } = await supabase.rpc('log_signup_attempt', {
+        email_param: email,
+        success_param: !error,
+        reason_param: error?.message || null
+      });
+      if (logError) console.error('Error logging signup:', logError);
+    }
 
     return { error };
   };
