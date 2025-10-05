@@ -112,40 +112,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
 
-    // If signup successful and we have profile data, create user profile
-    if (!error && data.user && metadata) {
-      try {
-        // Wait a moment for the auth session to be fully established
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        const { error: profileError } = await supabase
-          .from("user_profiles")
-          .insert({
-            id: data.user.id,
-            full_name: metadata.full_name,
-            date_of_birth: metadata.age
-              ? (() => {
-                  const birthYear = new Date().getFullYear() - metadata.age;
-                  return `${birthYear}-01-01`;
-                })()
-              : null,
-            gender: metadata.gender,
-            bio: metadata.bio,
-            location_city: metadata.location,
-            interests: metadata.interests,
-          });
-
-        if (profileError) {
-          console.error("Error creating user profile:", profileError);
-          console.error("Profile creation failed, but auth signup succeeded");
-          console.error("User may need to complete profile manually");
-        } else {
-          console.log("User profile created successfully");
-        }
-      } catch (profileError) {
-        console.error("Error creating user profile:", profileError);
-      }
-    }
+    // Profile creation is now handled by database trigger
+    // No need to create profile manually on client side
 
     return { error };
   };
