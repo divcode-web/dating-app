@@ -89,14 +89,14 @@ export function LandingPage() {
                 <p className="text-sm text-gray-500">Find your perfect match</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" onClick={() => router.push('/blog')}>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={() => router.push('/blog')} className="hidden sm:inline-flex">
                 Blog
               </Button>
-              <Button variant="ghost" onClick={() => router.push('/auth')}>
+              <Button variant="ghost" onClick={() => router.push('/auth')} className="hidden sm:inline-flex">
                 Sign In
               </Button>
-              <Button onClick={() => router.push('/auth')} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700">
+              <Button onClick={() => router.push('/auth')} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-sm sm:text-base px-3 sm:px-4">
                 Get Started
               </Button>
             </div>
@@ -109,11 +109,11 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="text-center lg:text-left">
-              <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
                 Find Your
                 <span className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent"> Perfect Match</span>
               </h1>
-              <p className="text-xl text-gray-600 mb-8 max-w-2xl">
+              <p className="text-lg sm:text-xl text-gray-600 mb-8 max-w-2xl mx-auto lg:mx-0">
                 Join millions of singles who have found love through our intelligent dating platform.
                 Smart matching, real connections, lasting relationships.
               </p>
@@ -136,7 +136,7 @@ export function LandingPage() {
                   Watch Demo
                 </Button>
               </div>
-              <div className="mt-8 flex items-center justify-center lg:justify-start space-x-8 text-sm text-gray-500">
+              <div className="mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-4 sm:gap-8 text-sm text-gray-500">
                 <div className="flex items-center space-x-2">
                   <Users className="w-4 h-4" />
                   <span>2M+ Users</span>

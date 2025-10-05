@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     if (!process.env.GOOGLE_GEMINI_API_KEY) {
       return NextResponse.json(
-        { error: 'Google Gemini API key not configured' },
+        { error: 'Google Gemini API key not configured. Please add GOOGLE_GEMINI_API_KEY to your environment variables.' },
         { status: 500 }
       )
     }
@@ -37,16 +37,17 @@ Requirements:
 - End with a strong conclusion
 - Use a friendly, relatable voice that resonates with singles looking for love
 
-Format the response as JSON with this structure:
+Format the response as JSON with this exact structure:
 {
   "title": "Blog post title",
   "excerpt": "Brief 2-3 sentence summary for preview",
   "content": "Full blog post content in HTML format with proper paragraphs, headings (h2, h3), lists, and emphasis",
   "tags": ["tag1", "tag2", "tag3"],
-  "meta_description": "SEO-friendly meta description (150-160 characters)"
+  "meta_description": "SEO-friendly meta description (150-160 characters)",
+  "image_query": "unsplash search query for a relevant image (3-4 words)"
 }
 
-Make it authentic, helpful, and engaging for people navigating the dating world.`
+Make it authentic, helpful, and engaging for people navigating the dating world. Return ONLY valid JSON, no markdown code blocks.`
 
     const result = await model.generateContent(prompt)
     const response = await result.response
@@ -59,15 +60,43 @@ Make it authentic, helpful, and engaging for people navigating the dating world.
       const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
       blogData = JSON.parse(cleanText)
     } catch (parseError) {
+      console.error('JSON parse error:', parseError, 'Raw text:', text)
       // If JSON parsing fails, create a structured response
       blogData = {
         title: topic,
         excerpt: text.substring(0, 200) + '...',
         content: text.replace(/\n\n/g, '</p><p>').replace(/^/, '<p>').replace(/$/, '</p>'),
         tags: ['dating', 'relationships', 'love'],
-        meta_description: text.substring(0, 155) + '...'
+        meta_description: text.substring(0, 155) + '...',
+        image_query: 'couple dating love romance'
       }
     }
+
+    // Fetch image from Unsplash
+    let featuredImage = 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800'
+
+    if (process.env.UNSPLASH_ACCESS_KEY && blogData.image_query) {
+      try {
+        const unsplashResponse = await fetch(
+          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(blogData.image_query)}&per_page=1&orientation=landscape`,
+          {
+            headers: {
+              Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}`,
+            },
+          }
+        )
+
+        const unsplashData = await unsplashResponse.json()
+        if (unsplashData.results && unsplashData.results.length > 0) {
+          featuredImage = unsplashData.results[0].urls.regular
+        }
+      } catch (unsplashError) {
+        console.error('Unsplash fetch error:', unsplashError)
+        // Continue with default image
+      }
+    }
+
+    blogData.featured_image = featuredImage
 
     return NextResponse.json({
       success: true,

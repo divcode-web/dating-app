@@ -221,6 +221,7 @@ export default function NewBlogPostPage() {
         slug: generateSlug(data.blog.title),
         excerpt: data.blog.excerpt,
         content: data.blog.content,
+        featured_image: data.blog.featured_image || prev.featured_image,
         meta_title: data.blog.title,
         meta_description: data.blog.meta_description,
       }));
@@ -531,7 +532,7 @@ export default function NewBlogPostPage() {
                   className={`px-3 py-1 rounded-full text-sm transition ${
                     selectedTags.includes(tag.id)
                       ? "bg-pink-500 text-white"
-                      : "bg-gray-100 hover:bg-gray-200"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700"
                   }`}
                 >
                   {tag.name}

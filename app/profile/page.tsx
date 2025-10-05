@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { ProfileForm } from "@/components/profile-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle, Edit, Shield } from "lucide-react";
+import { ArrowLeft, CheckCircle, Edit, Shield, Crown, Eye } from "lucide-react";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -18,6 +18,7 @@ export default function ProfilePage() {
   const [profileData, setProfileData] = useState<any>(null);
   const [completionPercentage, setCompletionPercentage] = useState(0);
   const [isOwnProfile, setIsOwnProfile] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -94,16 +95,23 @@ export default function ProfilePage() {
 
           <Card className="p-6">
             <div className="flex items-start gap-6">
-              {/* Profile Picture with Verified Badge */}
+              {/* Profile Picture with Badges */}
               <div className="relative">
                 <img
                   src={profileData.photos?.[0] || "/default-avatar.png"}
                   alt={profileData.full_name}
-                  className="w-32 h-32 rounded-full object-cover"
+                  className="w-32 h-32 rounded-full object-cover ring-4 ring-white dark:ring-gray-800"
                 />
+                {/* Premium Crown Badge */}
+                {profileData.is_premium && (
+                  <div className="absolute -top-2 -right-2 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full p-2 shadow-lg">
+                    <Crown className="w-5 h-5" />
+                  </div>
+                )}
+                {/* Verified Badge */}
                 {profileData.is_verified && (
-                  <div className="absolute -bottom-2 -right-2 bg-blue-500 text-white rounded-full p-2">
-                    <CheckCircle className="w-6 h-6" />
+                  <div className="absolute -bottom-2 -right-2 bg-blue-500 text-white rounded-full p-2 shadow-lg">
+                    <CheckCircle className="w-5 h-5" />
                   </div>
                 )}
               </div>
@@ -113,9 +121,10 @@ export default function ProfilePage() {
                 <h1 className="text-3xl font-bold flex items-center gap-2">
                   {profileData.full_name}
                   {profileData.is_verified && (
-                    <span className="text-2xl" title="Verified">
-                      ✓
-                    </span>
+                    <CheckCircle className="w-6 h-6 text-blue-500" title="Verified" />
+                  )}
+                  {profileData.is_premium && (
+                    <Crown className="w-6 h-6 text-yellow-500" title="Premium Member" />
                   )}
                 </h1>
                 <p className="text-gray-600 mt-2">{profileData.bio}</p>
@@ -270,6 +279,131 @@ export default function ProfilePage() {
     );
   }
 
+  // Show preview modal
+  if (showPreview && profileData) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="max-w-4xl w-full my-8">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 z-10">
+              <div>
+                <h2 className="text-2xl font-bold">Profile Preview</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">How others see your profile</p>
+              </div>
+              <Button onClick={() => setShowPreview(false)} variant="ghost">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Edit
+              </Button>
+            </div>
+
+            <div className="p-6">
+              <Card className="p-6">
+                <div className="flex items-start gap-6">
+                  {/* Profile Picture with Badges */}
+                  <div className="relative">
+                    <img
+                      src={profileData.photos?.[0] || "/default-avatar.png"}
+                      alt={profileData.full_name}
+                      className="w-32 h-32 rounded-full object-cover ring-4 ring-white dark:ring-gray-800"
+                    />
+                    {/* Premium Crown Badge */}
+                    {profileData.is_premium && (
+                      <div className="absolute -top-2 -right-2 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full p-2 shadow-lg">
+                        <Crown className="w-5 h-5" />
+                      </div>
+                    )}
+                    {/* Verified Badge */}
+                    {profileData.is_verified && (
+                      <div className="absolute -bottom-2 -right-2 bg-blue-500 text-white rounded-full p-2 shadow-lg">
+                        <CheckCircle className="w-5 h-5" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Profile Info */}
+                  <div className="flex-1">
+                    <h1 className="text-3xl font-bold flex items-center gap-2">
+                      {profileData.full_name}
+                      {profileData.is_verified && (
+                        <CheckCircle className="w-6 h-6 text-blue-500" title="Verified" />
+                      )}
+                      {profileData.is_premium && (
+                        <Crown className="w-6 h-6 text-yellow-500" title="Premium Member" />
+                      )}
+                    </h1>
+                    <p className="text-gray-600 dark:text-gray-400 mt-2">{profileData.bio}</p>
+
+                    {/* Basic Info */}
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      {profileData.location_city && (
+                        <div>
+                          <p className="text-sm text-gray-500">Location</p>
+                          <p className="font-medium">{profileData.location_city}</p>
+                        </div>
+                      )}
+                      {profileData.gender && (
+                        <div>
+                          <p className="text-sm text-gray-500">Gender</p>
+                          <p className="font-medium">{profileData.gender}</p>
+                        </div>
+                      )}
+                      {profileData.height && (
+                        <div>
+                          <p className="text-sm text-gray-500">Height</p>
+                          <p className="font-medium">{profileData.height} cm</p>
+                        </div>
+                      )}
+                      {profileData.occupation && (
+                        <div>
+                          <p className="text-sm text-gray-500">Occupation</p>
+                          <p className="font-medium">{profileData.occupation}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Interests */}
+                    {profileData.interests && profileData.interests.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-500 mb-2">Interests</p>
+                        <div className="flex flex-wrap gap-2">
+                          {profileData.interests.map((interest: string, i: number) => (
+                            <span
+                              key={i}
+                              className="px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-sm"
+                            >
+                              {interest}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Photos Gallery */}
+                {profileData.photos && profileData.photos.length > 1 && (
+                  <div className="mt-6">
+                    <p className="text-sm text-gray-500 mb-3">Photos</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {profileData.photos.slice(1).map((photo: string, i: number) => (
+                        <img
+                          key={i}
+                          src={photo}
+                          alt={`Photo ${i + 2}`}
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Own profile view
   return (
     <div className="container mx-auto p-6 max-w-4xl">
@@ -288,9 +422,10 @@ export default function ProfilePage() {
             <h1 className="text-3xl font-bold flex items-center gap-3">
               My Profile
               {profileData?.is_verified && (
-                <span className="text-2xl" title="Verified">
-                  ✓
-                </span>
+                <CheckCircle className="w-6 h-6 text-blue-500" title="Verified" />
+              )}
+              {profileData?.is_premium && (
+                <Crown className="w-6 h-6 text-yellow-500" title="Premium Member" />
               )}
             </h1>
             <p className="text-gray-600 mt-2">
@@ -298,8 +433,8 @@ export default function ProfilePage() {
             </p>
           </div>
 
-          {/* Profile Completion Circle */}
-          <div className="flex flex-col items-center">
+          {/* Profile Completion Circle & Preview Button */}
+          <div className="flex flex-col items-center gap-3">
             <div className="relative w-24 h-24">
               <svg className="w-24 h-24 transform -rotate-90">
                 <circle
@@ -333,6 +468,15 @@ export default function ProfilePage() {
               </div>
             </div>
             <p className="text-xs text-gray-600 mt-2">Profile Complete</p>
+            <Button
+              onClick={() => setShowPreview(true)}
+              variant="outline"
+              size="sm"
+              className="mt-2"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Preview Profile
+            </Button>
           </div>
         </div>
       </div>

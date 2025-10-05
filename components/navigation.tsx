@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, Menu, X, Sun, Moon, Heart, MessageCircle, Settings, User, Home, Users, Star, BookOpen } from 'lucide-react'
+import { ChevronLeft, Menu, X, Sun, Moon, Heart, MessageCircle, Settings, User, Home, Users, Star, BookOpen, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from './auth-provider'
 import { useDarkMode } from '@/lib/use-dark-mode'
@@ -162,6 +162,12 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" asChild>
+                <Link href="/admin-messages" className="flex items-center space-x-2">
+                  <Bell className="h-4 w-4" />
+                  <span>Notifications</span>
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
                 <Link href="/settings" className="flex items-center space-x-2">
                   <Settings className="h-4 w-4" />
                   <span>Settings</span>
@@ -180,16 +186,16 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
         {/* Mobile menu - slides from right */}
         {isMenuOpen && (
           <div className="fixed inset-0 z-[100] md:hidden">
-            {/* Backdrop - Fully opaque */}
+            {/* Backdrop - White opaque */}
             <div
-              className="absolute inset-0 bg-black/95 animate-in fade-in duration-200"
+              className="absolute inset-0 bg-white/95 dark:bg-gray-900/95 animate-in fade-in duration-200"
               onClick={() => setIsMenuOpen(false)}
             />
 
             {/* Menu panel */}
-            <div className="absolute right-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-900 border-l-4 border-gray-300 dark:border-gray-700 shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="absolute right-0 top-0 h-full w-72 bg-white dark:bg-gray-900 border-l-4 border-gray-300 dark:border-gray-700 shadow-2xl animate-in slide-in-from-right duration-300 overflow-y-auto">
               {/* Close button */}
-              <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white dark:bg-gray-900 z-10">
                 <h2 className="text-lg font-semibold">Menu</h2>
                 <Button
                   variant="ghost"
@@ -202,7 +208,7 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
               </div>
 
               {/* Menu items */}
-              <div className="px-4 py-2 space-y-1">
+              <div className="px-4 py-2 space-y-1 pb-8">
               <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
                 <Link href="/home" className="flex items-center space-x-2">
                   <Home className="h-4 w-4" />
@@ -237,6 +243,12 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                 <Link href="/profile" className="flex items-center space-x-2">
                   <User className="h-4 w-4" />
                   <span>Profile</span>
+                </Link>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
+                <Link href="/admin-messages" className="flex items-center space-x-2">
+                  <Bell className="h-4 w-4" />
+                  <span>Notifications</span>
                 </Link>
               </Button>
               <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>

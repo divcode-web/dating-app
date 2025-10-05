@@ -362,7 +362,15 @@ export default function AdminDashboard() {
               className="bg-white/10 border-white/20 text-white hover:bg-white/20"
             >
               <MessageSquare className="w-4 h-4 mr-2" />
-              Messages
+              User Messages
+            </Button>
+            <Button
+              onClick={() => router.push('/admin/messaging')}
+              variant="outline"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Send Message
             </Button>
             <Button
               onClick={() => router.push('/admin/blog')}
