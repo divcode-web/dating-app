@@ -4,8 +4,15 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 // Check if Supabase credentials are properly configured
-if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('your-project-id')) {
-  console.warn('Supabase credentials not configured. Please set up your .env.local file with proper Supabase credentials.')
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Supabase credentials not configured. Please set up your .env.local file with proper Supabase credentials.')
+  console.error('Required environment variables:')
+  console.error('- NEXT_PUBLIC_SUPABASE_URL')
+  console.error('- NEXT_PUBLIC_SUPABASE_ANON_KEY')
+}
+
+if (supabaseUrl && supabaseUrl.includes('your-project-id')) {
+  console.error('Supabase URL still contains placeholder. Please update your .env.local file with your actual Supabase project URL.')
 }
 
 // Create Supabase client
