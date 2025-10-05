@@ -187,7 +187,7 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
             />
 
             {/* Menu panel */}
-            <div className="absolute right-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-900 border-l shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="absolute right-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-900 border-l-4 border-gray-300 dark:border-gray-700 shadow-2xl animate-in slide-in-from-right duration-300">
               {/* Close button */}
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">Menu</h2>

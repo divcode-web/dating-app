@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Eye, Upload, X } from "lucide-react";
+import { ArrowLeft, Save, Eye, Upload, X, Sparkles, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Category {
@@ -26,11 +26,18 @@ interface Tag {
 
 export default function NewBlogPostPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("id");
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const [showAIDialog, setShowAIDialog] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiTone, setAiTone] = useState("professional");
+  const [aiLength, setAiLength] = useState("medium");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -48,7 +55,45 @@ export default function NewBlogPostPage() {
     checkAdmin();
     fetchCategories();
     fetchTags();
-  }, []);
+    if (editId) {
+      fetchPost();
+    }
+  }, [editId]);
+
+  const fetchPost = async () => {
+    if (!editId) return;
+
+    try {
+      const { data: post, error } = await supabase
+        .from("blog_posts")
+        .select(`
+          *,
+          tags:blog_post_tags(tag_id)
+        `)
+        .eq("id", editId)
+        .single();
+
+      if (error) throw error;
+
+      if (post) {
+        setFormData({
+          title: post.title,
+          slug: post.slug,
+          excerpt: post.excerpt || "",
+          content: post.content,
+          featured_image: post.featured_image || "",
+          category_id: post.category_id,
+          status: post.status,
+          meta_title: post.meta_title || "",
+          meta_description: post.meta_description || "",
+        });
+        setSelectedTags(post.tags?.map((t: any) => t.tag_id) || []);
+      }
+    } catch (error) {
+      console.error("Error fetching post:", error);
+      toast.error("Failed to load post");
+    }
+  };
 
   const checkAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -144,6 +189,64 @@ export default function NewBlogPostPage() {
     );
   };
 
+  const generateWithAI = async () => {
+    if (!aiTopic.trim()) {
+      toast.error("Please enter a topic");
+      return;
+    }
+
+    try {
+      setGeneratingAI(true);
+
+      const response = await fetch("/api/generate-blog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: aiTopic,
+          tone: aiTone,
+          length: aiLength,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate blog post");
+      }
+
+      // Fill form with AI-generated content
+      setFormData((prev) => ({
+        ...prev,
+        title: data.blog.title,
+        slug: generateSlug(data.blog.title),
+        excerpt: data.blog.excerpt,
+        content: data.blog.content,
+        meta_title: data.blog.title,
+        meta_description: data.blog.meta_description,
+      }));
+
+      // Auto-select matching tags if they exist
+      if (data.blog.tags && data.blog.tags.length > 0) {
+        const matchingTags = tags
+          .filter((tag) =>
+            data.blog.tags.some((aiTag: string) =>
+              tag.name.toLowerCase().includes(aiTag.toLowerCase())
+            )
+          )
+          .map((tag) => tag.id);
+        setSelectedTags(matchingTags);
+      }
+
+      setShowAIDialog(false);
+      toast.success("Blog post generated! Review and edit as needed.");
+    } catch (error: any) {
+      console.error("AI generation error:", error);
+      toast.error(error.message || "Failed to generate blog post");
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
   const handleSubmit = async (status: "draft" | "published") => {
     if (!formData.title || !formData.content || !formData.category_id) {
       toast.error("Please fill in all required fields");
@@ -156,39 +259,72 @@ export default function NewBlogPostPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Create the post
-      const { data: post, error: postError } = await supabase
-        .from("blog_posts")
-        .insert({
-          ...formData,
-          status,
-          author_id: user.id,
-          published_at: status === "published" ? new Date().toISOString() : null,
-        })
-        .select()
-        .single();
+      if (editId) {
+        // Update existing post
+        const { error: postError } = await supabase
+          .from("blog_posts")
+          .update({
+            ...formData,
+            status,
+            published_at: status === "published" && !formData.status ? new Date().toISOString() : undefined,
+          })
+          .eq("id", editId);
 
-      if (postError) throw postError;
+        if (postError) throw postError;
 
-      // Add tags
-      if (selectedTags.length > 0) {
-        const tagRelations = selectedTags.map((tagId) => ({
-          post_id: post.id,
-          tag_id: tagId,
-        }));
+        // Delete old tags and insert new ones
+        await supabase.from("blog_post_tags").delete().eq("post_id", editId);
 
-        const { error: tagError } = await supabase
-          .from("blog_post_tags")
-          .insert(tagRelations);
+        if (selectedTags.length > 0) {
+          const tagRelations = selectedTags.map((tagId) => ({
+            post_id: editId,
+            tag_id: tagId,
+          }));
 
-        if (tagError) throw tagError;
+          const { error: tagError } = await supabase
+            .from("blog_post_tags")
+            .insert(tagRelations);
+
+          if (tagError) throw tagError;
+        }
+
+        toast.success("Post updated successfully!");
+      } else {
+        // Create new post
+        const { data: post, error: postError } = await supabase
+          .from("blog_posts")
+          .insert({
+            ...formData,
+            status,
+            author_id: user.id,
+            published_at: status === "published" ? new Date().toISOString() : null,
+          })
+          .select()
+          .single();
+
+        if (postError) throw postError;
+
+        // Add tags
+        if (selectedTags.length > 0) {
+          const tagRelations = selectedTags.map((tagId) => ({
+            post_id: post.id,
+            tag_id: tagId,
+          }));
+
+          const { error: tagError } = await supabase
+            .from("blog_post_tags")
+            .insert(tagRelations);
+
+          if (tagError) throw tagError;
+        }
+
+        toast.success(`Post ${status === "published" ? "published" : "saved as draft"}!`);
       }
 
-      toast.success(`Post ${status === "published" ? "published" : "saved as draft"}!`);
       router.push("/admin/blog");
     } catch (error: any) {
-      console.error("Error creating post:", error);
-      toast.error(error.message || "Failed to create post");
+      console.error("Error saving post:", error);
+      toast.error(error.message || "Failed to save post");
     } finally {
       setLoading(false);
     }
@@ -196,15 +332,24 @@ export default function NewBlogPostPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-5xl">
-      <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" onClick={() => router.push("/admin/blog")}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Create New Post</h1>
-          <p className="text-gray-600">Write and publish a new blog post</p>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => router.push("/admin/blog")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">{editId ? "Edit Post" : "Create New Post"}</h1>
+            <p className="text-gray-600">Write and publish a new blog post</p>
+          </div>
         </div>
+        <Button
+          onClick={() => setShowAIDialog(true)}
+          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+        >
+          <Sparkles className="w-4 h-4 mr-2" />
+          Generate with AI
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -396,6 +541,111 @@ export default function NewBlogPostPage() {
           </Card>
         </div>
       </div>
+
+      {/* AI Generation Dialog */}
+      {showAIDialog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <Card className="max-w-lg w-full p-6 animate-in zoom-in duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold flex items-center">
+                <Sparkles className="w-6 h-6 mr-2 text-purple-500" />
+                Generate Blog with AI
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAIDialog(false)}
+                disabled={generatingAI}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="ai-topic">Topic *</Label>
+                <Input
+                  id="ai-topic"
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  placeholder="e.g., First date tips, Online dating safety, etc."
+                  disabled={generatingAI}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="ai-tone">Tone</Label>
+                <Select
+                  value={aiTone}
+                  onValueChange={setAiTone}
+                  disabled={generatingAI}
+                >
+                  <SelectTrigger id="ai-tone">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="casual">Casual & Friendly</SelectItem>
+                    <SelectItem value="humorous">Humorous</SelectItem>
+                    <SelectItem value="romantic">Romantic</SelectItem>
+                    <SelectItem value="inspirational">Inspirational</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="ai-length">Length</Label>
+                <Select
+                  value={aiLength}
+                  onValueChange={setAiLength}
+                  disabled={generatingAI}
+                >
+                  <SelectTrigger id="ai-length">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="short">Short (300-500 words)</SelectItem>
+                    <SelectItem value="medium">Medium (600-800 words)</SelectItem>
+                    <SelectItem value="long">Long (1000-1500 words)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={generateWithAI}
+                  disabled={generatingAI || !aiTopic.trim()}
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                >
+                  {generatingAI ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAIDialog(false)}
+                  disabled={generatingAI}
+                >
+                  Cancel
+                </Button>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-4">
+                AI will generate a complete blog post based on your topic. You can edit the
+                generated content before publishing.
+              </p>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

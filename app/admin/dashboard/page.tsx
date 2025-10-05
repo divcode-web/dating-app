@@ -15,6 +15,8 @@ import {
   XCircle,
   Ban,
   LogOut,
+  MessageSquare,
+  BookOpen,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -353,14 +355,32 @@ export default function AdminDashboard() {
             </h1>
             <p className="text-gray-300 mt-2">Welcome back, {adminUser?.role || 'Admin'}</p>
           </div>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => router.push('/messages')}
+              variant="outline"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Messages
+            </Button>
+            <Button
+              onClick={() => router.push('/admin/blog')}
+              variant="outline"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            >
+              <BookOpen className="w-4 h-4 mr-2" />
+              Blog
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
 
         {/* Stats Grid */}

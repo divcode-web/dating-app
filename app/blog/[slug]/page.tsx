@@ -254,7 +254,7 @@ export default function BlogPostPage() {
                   <Link
                     key={index}
                     href={`/blog?tag=${tag.slug}`}
-                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm flex items-center gap-1"
+                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 rounded-full text-sm flex items-center gap-1"
                   >
                     <Tag className="w-3 h-3" />
                     {tag.name}

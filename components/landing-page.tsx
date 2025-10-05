@@ -90,6 +90,9 @@ export function LandingPage() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <Button variant="ghost" onClick={() => router.push('/blog')}>
+                Blog
+              </Button>
               <Button variant="ghost" onClick={() => router.push('/auth')}>
                 Sign In
               </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { updateUserProfile, uploadPhoto } from "@/lib/api";
+import { updateUserProfile, uploadPhoto, getUserProfile } from "@/lib/api";
 import { Upload, X, ArrowLeft, ArrowRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import toast from "react-hot-toast";
@@ -20,6 +20,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -32,6 +33,45 @@ export default function OnboardingPage() {
   });
 
   const [interestInput, setInterestInput] = useState("");
+
+  // Load existing profile data on mount
+  useEffect(() => {
+    const loadExistingProfile = async () => {
+      if (!user?.id) return;
+
+      try {
+        const profile = await getUserProfile(user.id);
+        if (profile) {
+          setFormData({
+            full_name: profile.full_name || "",
+            date_of_birth: profile.date_of_birth || "",
+            gender: profile.gender || "",
+            bio: profile.bio || "",
+            interests: profile.interests || [],
+            photos: profile.photos || [],
+          });
+
+          // Calculate which step to start on based on what's missing
+          const startStep = calculateStartStep(profile);
+          setCurrentStep(startStep);
+        }
+      } catch (error) {
+        console.error("Failed to load profile:", error);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    loadExistingProfile();
+  }, [user?.id]);
+
+  // Determine which step to start on based on missing data
+  const calculateStartStep = (profile: any) => {
+    if (!profile.full_name) return 1;
+    if (!profile.date_of_birth || !profile.gender) return 2;
+    if (!profile.photos || profile.photos.length === 0) return 3;
+    return 4; // Bio and interests (optional fields)
+  };
 
   const progress = (currentStep / TOTAL_STEPS) * 100;
 
@@ -360,6 +400,14 @@ export default function OnboardingPage() {
         return null;
     }
   };
+
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center p-6">
