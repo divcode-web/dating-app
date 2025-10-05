@@ -578,9 +578,8 @@ export default function NewBlogPostPage() {
                 <Select
                   value={aiTone}
                   onValueChange={setAiTone}
-                  disabled={generatingAI}
                 >
-                  <SelectTrigger id="ai-tone">
+                  <SelectTrigger id="ai-tone" disabled={generatingAI}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -598,9 +597,8 @@ export default function NewBlogPostPage() {
                 <Select
                   value={aiLength}
                   onValueChange={setAiLength}
-                  disabled={generatingAI}
                 >
-                  <SelectTrigger id="ai-length">
+                  <SelectTrigger id="ai-length" disabled={generatingAI}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
