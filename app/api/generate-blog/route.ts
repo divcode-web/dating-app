@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || '')
+// Initialize the client with API key from environment
+const ai = new GoogleGenAI({
+  apiKey: process.env.GOOGLE_GEMINI_API_KEY || ''
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,13 +18,21 @@ export async function POST(request: NextRequest) {
     }
 
     if (!process.env.GOOGLE_GEMINI_API_KEY) {
+      console.error('GOOGLE_GEMINI_API_KEY not configured')
       return NextResponse.json(
-        { error: 'Google Gemini API key not configured. Please add GOOGLE_GEMINI_API_KEY to your environment variables.' },
+        {
+          error: 'AI service not configured. Please add GOOGLE_GEMINI_API_KEY to your environment variables.',
+          setup_required: true,
+          instructions: 'Get your API key from: https://ai.google.dev/gemini-api/docs/api-key',
+          debug: {
+            hasKey: false,
+            nodeEnv: process.env.NODE_ENV,
+            vercelEnv: process.env.VERCEL_ENV
+          }
+        },
         { status: 500 }
       )
     }
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
     const lengthGuide = length === 'short' ? '300-500 words' : length === 'long' ? '1000-1500 words' : '600-800 words'
     const toneGuide = tone || 'professional and engaging'
@@ -49,9 +60,44 @@ Format the response as JSON with this exact structure:
 
 Make it authentic, helpful, and engaging for people navigating the dating world. Return ONLY valid JSON, no markdown code blocks.`
 
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-    const text = response.text()
+    let text
+
+    try {
+      // Use Gemini 2.0 Flash model with the new API
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: prompt
+      })
+
+      if (!response || !response.text) {
+        throw new Error('No response received from Gemini API')
+      }
+
+      text = response.text
+
+      if (!text || text.trim().length === 0) {
+        throw new Error('Empty response received from Gemini API')
+      }
+    } catch (apiError: any) {
+      console.error('Gemini API Error:', {
+        message: apiError?.message,
+        status: apiError?.status,
+        statusText: apiError?.statusText,
+        details: apiError
+      })
+
+      // Provide more specific error messages
+      const errorMessage = apiError?.message || 'Unknown API error'
+      if (errorMessage.includes('API_KEY') || errorMessage.includes('apiKey')) {
+        throw new Error('Invalid API key provided to Gemini')
+      } else if (errorMessage.includes('QUOTA') || errorMessage.includes('quota')) {
+        throw new Error('Gemini API quota exceeded. Please try again later or check your billing.')
+      } else if (errorMessage.includes('PERMISSION') || errorMessage.includes('permission')) {
+        throw new Error('Gemini API access denied. Please check your API key permissions.')
+      } else {
+        throw new Error(`Gemini API error: ${errorMessage}`)
+      }
+    }
 
     // Try to extract JSON from the response
     let blogData

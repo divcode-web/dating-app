@@ -1,54 +1,82 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import Link from 'next/link'
-import { ChevronLeft, Menu, X, Sun, Moon, Heart, MessageCircle, Settings, User, Home, Users, Star, BookOpen, Bell } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useAuth } from './auth-provider'
-import { useDarkMode } from '@/lib/use-dark-mode'
+import React, { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import {
+  ChevronLeft,
+  Menu,
+  X,
+  Sun,
+  Moon,
+  Heart,
+  MessageCircle,
+  Settings,
+  User,
+  Home,
+  Users,
+  Star,
+  BookOpen,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "./auth-provider";
+import { useDarkMode } from "@/lib/use-dark-mode";
 
 interface NavigationProps {
-  showBackButton?: boolean
-  title?: string
+  showBackButton?: boolean;
+  title?: string;
 }
 
 export function Navigation({ showBackButton = false, title }: NavigationProps) {
-  const { user } = useAuth()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { isDarkMode, toggleDarkMode } = useDarkMode(user?.id)
-  const router = useRouter()
-  const pathname = usePathname()
+  const { user } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isDarkMode, toggleDarkMode } = useDarkMode(user?.id);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Handle body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isMenuOpen]);
 
   // Don't show navigation if user is not logged in
   if (!user) {
-    return null
+    return null;
   }
 
   const handleToggleDarkMode = () => {
-    toggleDarkMode(undefined, user?.id) // Pass user ID to save to DB
-  }
+    toggleDarkMode(undefined, user?.id); // Pass user ID to save to DB
+  };
 
   const handleBack = () => {
-    router.back()
-  }
+    router.back();
+  };
 
   const getBreadcrumbs = () => {
-    const paths = pathname.split('/').filter(Boolean)
-    const breadcrumbs = [{ name: 'Home', path: '/' }]
+    const paths = pathname.split("/").filter(Boolean);
+    const breadcrumbs = [{ name: "Home", path: "/" }];
 
     if (paths.length > 0) {
       paths.forEach((path, index) => {
-        const fullPath = '/' + paths.slice(0, index + 1).join('/')
-        const name = path.charAt(0).toUpperCase() + path.slice(1)
-        breadcrumbs.push({ name, path: fullPath })
-      })
+        const fullPath = "/" + paths.slice(0, index + 1).join("/");
+        const name = path.charAt(0).toUpperCase() + path.slice(1);
+        breadcrumbs.push({ name, path: fullPath });
+      });
     }
 
-    return breadcrumbs
-  }
+    return breadcrumbs;
+  };
 
-  const breadcrumbs = getBreadcrumbs()
+  const breadcrumbs = getBreadcrumbs();
 
   return (
     <>
@@ -76,7 +104,9 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                   <Link
                     href={crumb.path}
                     className={`hover:text-foreground transition-colors ${
-                      index === breadcrumbs.length - 1 ? 'text-foreground font-medium' : ''
+                      index === breadcrumbs.length - 1
+                        ? "text-foreground font-medium"
+                        : ""
                     }`}
                   >
                     {crumb.name}
@@ -162,12 +192,6 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/admin-messages" className="flex items-center space-x-2">
-                  <Bell className="h-4 w-4" />
-                  <span>Notifications</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
                 <Link href="/settings" className="flex items-center space-x-2">
                   <Settings className="h-4 w-4" />
                   <span>Settings</span>
@@ -188,12 +212,14 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
           <div className="fixed inset-0 z-[100] md:hidden">
             {/* Backdrop - White opaque */}
             <div
-              className="absolute inset-0 bg-white/95 dark:bg-gray-900/95 animate-in fade-in duration-200"
+              className="absolute inset-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm"
               onClick={() => setIsMenuOpen(false)}
             />
 
             {/* Menu panel */}
-            <div className="absolute right-0 top-0 h-full w-72 bg-white dark:bg-gray-900 border-l-4 border-gray-300 dark:border-gray-700 shadow-2xl animate-in slide-in-from-right duration-300 overflow-y-auto">
+            <div
+              className={`absolute right-0 top-0 h-full w-72 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-2xl transform transition-transform duration-300 ease-in-out ${isMenuOpen ? "translate-x-0" : "translate-x-full"}`}
+            >
               {/* Close button */}
               <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white dark:bg-gray-900 z-10">
                 <h2 className="text-lg font-semibold">Menu</h2>
@@ -209,65 +235,105 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
 
               {/* Menu items */}
               <div className="px-4 py-2 space-y-1 pb-8">
-              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
-                <Link href="/home" className="flex items-center space-x-2">
-                  <Home className="h-4 w-4" />
-                  <span>Home</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
-                <Link href="/swipe" className="flex items-center space-x-2">
-                  <Heart className="h-4 w-4" />
-                  <span>Swipe</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
-                <Link href="/matches" className="flex items-center space-x-2">
-                  <Users className="h-4 w-4" />
-                  <span>Matches</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
-                <Link href="/likes" className="flex items-center space-x-2">
-                  <Star className="h-4 w-4" />
-                  <span>Likes</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
-                <Link href="/messages" className="flex items-center space-x-2">
-                  <MessageCircle className="h-4 w-4" />
-                  <span>Messages</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
-                <Link href="/profile" className="flex items-center space-x-2">
-                  <User className="h-4 w-4" />
-                  <span>Profile</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
-                <Link href="/admin-messages" className="flex items-center space-x-2">
-                  <Bell className="h-4 w-4" />
-                  <span>Notifications</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
-                <Link href="/settings" className="flex items-center space-x-2">
-                  <Settings className="h-4 w-4" />
-                  <span>Settings</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
-                <Link href="/blog" className="flex items-center space-x-2">
-                  <BookOpen className="h-4 w-4" />
-                  <span>Blog</span>
-                </Link>
-              </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  asChild
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Link href="/home" className="flex items-center space-x-2">
+                    <Home className="h-4 w-4" />
+                    <span>Home</span>
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  asChild
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Link href="/swipe" className="flex items-center space-x-2">
+                    <Heart className="h-4 w-4" />
+                    <span>Swipe</span>
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  asChild
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Link href="/matches" className="flex items-center space-x-2">
+                    <Users className="h-4 w-4" />
+                    <span>Matches</span>
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  asChild
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Link href="/likes" className="flex items-center space-x-2">
+                    <Star className="h-4 w-4" />
+                    <span>Likes</span>
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  asChild
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Link
+                    href="/messages"
+                    className="flex items-center space-x-2"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Messages</span>
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  asChild
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Link href="/profile" className="flex items-center space-x-2">
+                    <User className="h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  asChild
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Link
+                    href="/settings"
+                    className="flex items-center space-x-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  asChild
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Link href="/blog" className="flex items-center space-x-2">
+                    <BookOpen className="h-4 w-4" />
+                    <span>Blog</span>
+                  </Link>
+                </Button>
               </div>
             </div>
           </div>
         )}
       </nav>
     </>
-  )
+  );
 }

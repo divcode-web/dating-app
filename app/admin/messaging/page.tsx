@@ -79,8 +79,13 @@ export default function AdminMessagingPage() {
     try {
       setLoading(true);
 
+      // Create message content with subject and body
+      const messageContent = formData.subject
+        ? `**${formData.subject}**\n\n${formData.content}`
+        : formData.content;
+
       if (formData.recipient === "all") {
-        // Send bulk message
+        // Use the bulk message function
         const { data, error } = await supabase.rpc("send_bulk_message", {
           admin_id_param: adminId,
           subject_param: formData.subject,
@@ -90,7 +95,7 @@ export default function AdminMessagingPage() {
 
         if (error) throw error;
 
-        toast.success(`Message sent to ${data} users!`);
+        toast.success(`Message sent to ${data || 0} users!`);
       } else {
         // Send to specific user
         if (!formData.recipientId) {
