@@ -99,21 +99,37 @@ export default function SettingsPage() {
   const saveSettings = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.from("user_settings").upsert({
-        user_id: user.id,
-        email_notifications: settings.emailNotifications,
-        push_notifications: settings.pushNotifications,
-        profile_visibility: settings.profileVisibility,
-        distance_range: settings.distanceRange,
-        age_range: settings.ageRange,
-        dark_mode: settings.darkMode,
-      });
 
-      if (error) throw error;
+      const { error } = await supabase
+        .from("user_settings")
+        .upsert({
+          user_id: user.id,
+          email_notifications: settings.emailNotifications,
+          push_notifications: settings.pushNotifications,
+          profile_visibility: settings.profileVisibility,
+          distance_range: settings.distanceRange,
+          age_range: settings.ageRange,
+          dark_mode: settings.darkMode,
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error("Save error:", error);
+        throw error;
+      }
+
+      // Update localStorage for dark mode
+      if (settings.darkMode) {
+        localStorage.setItem('theme', 'dark');
+      } else {
+        localStorage.setItem('theme', 'light');
+      }
+
       toast.success("Settings saved successfully");
-    } catch (error) {
-      toast.error("Error saving settings");
-      console.error("Error:", error);
+    } catch (error: any) {
+      console.error("Error saving settings:", error);
+      toast.error(error?.message || "Error saving settings");
     } finally {
       setLoading(false);
     }

@@ -42,7 +42,13 @@ export function GeolocationProvider({ children }: GeolocationProviderProps) {
     return 'idle'
   })
   const [showPermissionDialog, setShowPermissionDialog] = useState(false)
-  const [hasCheckedPermission, setHasCheckedPermission] = useState(false)
+  const [hasCheckedPermission, setHasCheckedPermission] = useState(() => {
+    // Check if we already asked in this session
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('location-asked') === 'true'
+    }
+    return false
+  })
 
   // Check if we already have location permission on mount
   // ONLY if user is logged in AND not on admin portal
@@ -59,9 +65,24 @@ export function GeolocationProvider({ children }: GeolocationProviderProps) {
 
     // If user already denied or granted, don't show dialog again
     const savedPermission = localStorage.getItem('location-permission')
-    if (savedPermission === 'denied') {
-      setPermissionStatus('denied')
+    if (savedPermission === 'denied' || savedPermission === 'granted') {
+      setPermissionStatus(savedPermission as any)
       setHasCheckedPermission(true)
+      sessionStorage.setItem('location-asked', 'true')
+
+      // If granted, try to get location
+      if (savedPermission === 'granted') {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            })
+          },
+          () => {},
+          { timeout: 10000 }
+        )
+      }
       return
     }
 
@@ -77,32 +98,34 @@ export function GeolocationProvider({ children }: GeolocationProviderProps) {
               })
               setPermissionStatus('granted')
               localStorage.setItem('location-permission', 'granted')
+              sessionStorage.setItem('location-asked', 'true')
             },
             () => {
               setPermissionStatus('denied')
               localStorage.setItem('location-permission', 'denied')
+              sessionStorage.setItem('location-asked', 'true')
             },
             { timeout: 10000 }
           )
         } else if (result.state === 'denied') {
           setPermissionStatus('denied')
           localStorage.setItem('location-permission', 'denied')
-        } else if (!savedPermission) {
-          // Only show dialog if we haven't asked before
+          sessionStorage.setItem('location-asked', 'true')
+        } else {
+          // Only show dialog if we haven't asked in this session
           setShowPermissionDialog(true)
+          sessionStorage.setItem('location-asked', 'true')
         }
         setHasCheckedPermission(true)
       }).catch(() => {
         // Fallback for browsers that don't support permissions API
-        if (!savedPermission) {
-          setShowPermissionDialog(true)
-        }
+        setShowPermissionDialog(true)
+        sessionStorage.setItem('location-asked', 'true')
         setHasCheckedPermission(true)
       })
     } else {
-      if (!savedPermission) {
-        setShowPermissionDialog(true)
-      }
+      setShowPermissionDialog(true)
+      sessionStorage.setItem('location-asked', 'true')
       setHasCheckedPermission(true)
     }
   }, [user, loading, hasCheckedPermission])

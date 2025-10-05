@@ -187,10 +187,32 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
           </div>
         </div>
 
-        {/* Mobile menu */}
+        {/* Mobile menu - slides from right */}
         {isMenuOpen && (
-          <div className="md:hidden border-t bg-background">
-            <div className="px-4 py-2 space-y-1">
+          <div className="fixed inset-0 z-50 md:hidden">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/50 animate-in fade-in"
+              onClick={() => setIsMenuOpen(false)}
+            />
+
+            {/* Menu panel */}
+            <div className="absolute right-0 top-0 bottom-0 w-72 bg-background border-l shadow-xl animate-in slide-in-from-right duration-300">
+              {/* Close button */}
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-lg font-semibold">Menu</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="p-2 hover:bg-accent"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Menu items */}
+              <div className="px-4 py-2 space-y-1">
               <Button variant="ghost" className="w-full justify-start" asChild>
                 <Link href="/home" className="flex items-center space-x-2">
                   <Home className="h-4 w-4" />
@@ -233,6 +255,7 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                   <span>Settings</span>
                 </Link>
               </Button>
+              </div>
             </div>
           </div>
         )}

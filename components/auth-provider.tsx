@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session, AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { useRouter, usePathname } from "next/navigation";
 import toast from "react-hot-toast";
 
 interface AuthContextType {
@@ -33,9 +34,57 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasRedirected, setHasRedirected] = useState(false);
+
+  const checkProfileCompletion = async (userId: string | undefined) => {
+    if (!userId || !supabase || hasRedirected) return;
+
+    // Skip if already on these pages
+    if (pathname?.includes('/profile-setup') || pathname?.includes('/onboarding') || pathname?.includes('/home')) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("bio, photos, interests, full_name, gender, date_of_birth")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        console.error("Error checking profile:", error);
+        setHasRedirected(true);
+        router.push("/onboarding");
+        return;
+      }
+
+      // Check if profile is incomplete
+      const hasBasicInfo = data?.full_name && data?.gender && data?.date_of_birth;
+      const hasPhotos = data?.photos && data.photos.length > 0;
+      const hasBio = data?.bio && data.bio.length >= 20;
+      const hasInterests = data?.interests && data.interests.length >= 3;
+
+      if (!hasBasicInfo) {
+        setHasRedirected(true);
+        router.push("/onboarding");
+      } else if (!hasPhotos || !hasBio || !hasInterests) {
+        setHasRedirected(true);
+        router.push("/profile-setup");
+      } else {
+        setHasRedirected(true);
+        router.push("/home");
+      }
+    } catch (error) {
+      console.error("Error checking profile completion:", error);
+      setHasRedirected(true);
+      router.push("/onboarding");
+    }
+  };
 
   useEffect(() => {
     // Check if Supabase is configured
@@ -84,7 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Small delay to allow any route changes to complete
           setTimeout(() => {
             if (!window.location.pathname.startsWith("/admin")) {
-              window.location.href = "/home";
+              // Check if user has completed profile setup
+              checkProfileCompletion(session?.user?.id);
             }
           }, 100);
         }
