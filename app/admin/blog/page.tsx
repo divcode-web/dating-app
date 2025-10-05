@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Plus, Edit, Trash2, Eye, EyeOff, Calendar, Heart,
-  FileText, CheckCircle, XCircle, Clock
+  FileText, CheckCircle, XCircle, Clock, ArrowLeft
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
@@ -140,10 +140,19 @@ export default function AdminBlogPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
+      <Button
+        variant="ghost"
+        onClick={() => router.push("/admin/dashboard")}
+        className="mb-4"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to Dashboard
+      </Button>
+
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Blog Management</h1>
-          <p className="text-gray-600 mt-1">Manage your blog posts and content</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your blog posts and content</p>
         </div>
         <Link href="/admin/blog/new">
           <Button className="bg-gradient-to-r from-pink-500 to-purple-600">
