@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, Menu, X, Sun, Moon, Heart, MessageCircle, Settings, User, Home, Users, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from './auth-provider'
+import { useDarkMode } from '@/lib/use-dark-mode'
 
 interface NavigationProps {
   showBackButton?: boolean
@@ -15,34 +16,17 @@ interface NavigationProps {
 export function Navigation({ showBackButton = false, title }: NavigationProps) {
   const { user } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const { isDarkMode, toggleDarkMode } = useDarkMode(user?.id)
   const router = useRouter()
   const pathname = usePathname()
-
-  // Initialize dark mode from localStorage
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme')
-    if (savedTheme === 'dark') {
-      setIsDarkMode(true)
-      document.documentElement.classList.add('dark')
-    }
-  }, [])
 
   // Don't show navigation if user is not logged in
   if (!user) {
     return null
   }
 
-  const toggleDarkMode = () => {
-    const newTheme = !isDarkMode
-    setIsDarkMode(newTheme)
-    if (newTheme) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('theme', 'dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem('theme', 'light')
-    }
+  const handleToggleDarkMode = () => {
+    toggleDarkMode(undefined, user?.id) // Pass user ID to save to DB
   }
 
   const handleBack = () => {
@@ -115,7 +99,7 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={toggleDarkMode}
+              onClick={handleToggleDarkMode}
               className="p-2 hover:bg-accent"
             >
               {isDarkMode ? (
@@ -192,12 +176,12 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
           <div className="fixed inset-0 z-[100] md:hidden">
             {/* Backdrop */}
             <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+              className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
               onClick={() => setIsMenuOpen(false)}
             />
 
             {/* Menu panel */}
-            <div className="absolute right-0 top-0 bottom-0 w-72 bg-background border-l shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="absolute right-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-900 border-l shadow-2xl animate-in slide-in-from-right duration-300">
               {/* Close button */}
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">Menu</h2>

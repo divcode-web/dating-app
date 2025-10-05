@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useGeolocation } from "@/components/geolocation-provider";
 import { MapPin, CheckCircle2 } from "lucide-react";
 import { getLocationAccuracy } from "@/lib/matching-score";
+import { useDarkMode } from "@/lib/use-dark-mode";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -19,13 +20,18 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const { isDarkMode, toggleDarkMode } = useDarkMode();
   const [settings, setSettings] = useState({
     emailNotifications: true,
     pushNotifications: true,
     profileVisibility: true,
     distanceRange: 50,
     ageRange: [18, 50],
-    darkMode: false,
+    useCustomLocation: false,
+    customLocationCity: "",
+    customLocationState: "",
+    customLocationCountry: "",
+    showMeGender: ["Male", "Female", "Non-binary", "Other"],
   });
 
   useEffect(() => {
@@ -67,14 +73,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Apply dark mode on mount
-  useEffect(() => {
-    if (settings.darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [settings.darkMode]);
 
   const fetchSettings = async (userId: string) => {
     try {
@@ -93,7 +91,11 @@ export default function SettingsPage() {
           profileVisibility: data.profile_visibility,
           distanceRange: data.distance_range,
           ageRange: data.age_range,
-          darkMode: data.dark_mode,
+          useCustomLocation: data.use_custom_location || false,
+          customLocationCity: data.custom_location_city || "",
+          customLocationState: data.custom_location_state || "",
+          customLocationCountry: data.custom_location_country || "",
+          showMeGender: data.show_me_gender || ["Male", "Female", "Non-binary", "Other"],
         });
       }
     } catch (error) {
@@ -130,7 +132,12 @@ export default function SettingsPage() {
           profile_visibility: settings.profileVisibility,
           distance_range: settings.distanceRange,
           age_range: settings.ageRange,
-          dark_mode: settings.darkMode,
+          use_custom_location: settings.useCustomLocation,
+          custom_location_city: settings.customLocationCity,
+          custom_location_state: settings.customLocationState,
+          custom_location_country: settings.customLocationCountry,
+          show_me_gender: settings.showMeGender,
+          dark_mode: isDarkMode,
         }, {
           onConflict: 'user_id'
         });
@@ -138,13 +145,6 @@ export default function SettingsPage() {
       if (error) {
         console.error("Save error:", error);
         throw error;
-      }
-
-      // Update localStorage for dark mode
-      if (settings.darkMode) {
-        localStorage.setItem('theme', 'dark');
-      } else {
-        localStorage.setItem('theme', 'light');
       }
 
       toast.success("Settings saved successfully");
@@ -239,6 +239,83 @@ export default function SettingsPage() {
             <div>
               <h3 className="text-lg font-semibold mb-4">Discovery Preferences</h3>
               <div className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg border">
+                {/* Custom Location */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium">Search in Different Location</label>
+                      <p className="text-xs text-gray-500">Override your profile location for discovery</p>
+                    </div>
+                    <Switch
+                      checked={settings.useCustomLocation}
+                      onCheckedChange={(checked) =>
+                        setSettings((prev) => ({
+                          ...prev,
+                          useCustomLocation: checked,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  {settings.useCustomLocation && (
+                    <div className="space-y-3 pl-4 border-l-2 border-pink-300">
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300">City</label>
+                        <Input
+                          value={settings.customLocationCity}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              customLocationCity: e.target.value,
+                            }))
+                          }
+                          placeholder="e.g., Lagos"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300">State/Region (Optional)</label>
+                        <Input
+                          value={settings.customLocationState}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              customLocationState: e.target.value,
+                            }))
+                          }
+                          placeholder="e.g., Lagos State"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Country</label>
+                        <Input
+                          value={settings.customLocationCountry}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              customLocationCountry: e.target.value,
+                            }))
+                          }
+                          placeholder="e.g., Nigeria"
+                          className="mt-1"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 italic">
+                        Tip: Turn this off to return to your profile location
+                      </p>
+                    </div>
+                  )}
+
+                  {!settings.useCustomLocation && userProfile?.location_city && (
+                    <div className="bg-pink-50 dark:bg-pink-900/20 p-3 rounded-lg">
+                      <p className="text-xs text-gray-700 dark:text-gray-300">
+                        Currently searching in: <span className="font-semibold">{userProfile.location_city}</span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <label className="text-sm font-medium">Distance Range</label>
@@ -249,11 +326,16 @@ export default function SettingsPage() {
                     onValueChange={([value]) =>
                       setSettings((prev) => ({ ...prev, distanceRange: value }))
                     }
-                    max={100}
-                    step={1}
+                    max={500}
+                    min={5}
+                    step={5}
                     className="w-full"
                   />
+                  <p className="text-xs text-gray-500">
+                    Search for people within {settings.distanceRange} km of your {settings.useCustomLocation ? 'custom' : 'profile'} location
+                  </p>
                 </div>
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <label className="text-sm font-medium">Age Range</label>
@@ -269,6 +351,33 @@ export default function SettingsPage() {
                     step={1}
                     className="w-full"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Show Me</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {["Male", "Female", "Non-binary", "Other"].map((gender) => (
+                      <button
+                        key={gender}
+                        type="button"
+                        onClick={() => {
+                          const current = settings.showMeGender;
+                          const updated = current.includes(gender)
+                            ? current.filter(g => g !== gender)
+                            : [...current, gender];
+                          setSettings((prev) => ({ ...prev, showMeGender: updated.length > 0 ? updated : current }));
+                        }}
+                        className={`p-3 rounded-lg border-2 transition text-sm ${
+                          settings.showMeGender.includes(gender)
+                            ? "border-pink-500 bg-pink-50 dark:bg-pink-900/20 font-medium"
+                            : "border-gray-200 hover:border-pink-300"
+                        }`}
+                      >
+                        {gender}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500">Select at least one gender</p>
                 </div>
               </div>
             </div>
@@ -389,17 +498,9 @@ export default function SettingsPage() {
                     <p className="text-xs text-gray-500">Switch between light and dark theme</p>
                   </div>
                   <Switch
-                    checked={settings.darkMode}
+                    checked={isDarkMode}
                     onCheckedChange={(checked) => {
-                      setSettings((prev) => ({ ...prev, darkMode: checked }));
-                      // Apply dark mode immediately
-                      if (checked) {
-                        document.documentElement.classList.add('dark');
-                        localStorage.setItem('theme', 'dark');
-                      } else {
-                        document.documentElement.classList.remove('dark');
-                        localStorage.setItem('theme', 'light');
-                      }
+                      toggleDarkMode(checked, user?.id);
                     }}
                   />
                 </div>
