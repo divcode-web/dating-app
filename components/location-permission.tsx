@@ -18,6 +18,7 @@ export function LocationPermission({ onLocationGranted, onLocationDenied }: Loca
     if (!navigator.geolocation) {
       setStatus('error')
       setError('Geolocation is not supported by this browser')
+      setTimeout(() => onLocationDenied(), 2000) // Auto-close after showing error
       return
     }
 
@@ -38,11 +39,13 @@ export function LocationPermission({ onLocationGranted, onLocationDenied }: Loca
       }
 
       setStatus('granted')
-      onLocationGranted(location)
+      // Auto-close after 1 second when granted
+      setTimeout(() => onLocationGranted(location), 1000)
     } catch (err: any) {
       setStatus('denied')
       setError(err.message || 'Unable to get your location')
-      onLocationDenied()
+      // Auto-close after 1.5 seconds when denied
+      setTimeout(() => onLocationDenied(), 1500)
     }
   }
 
@@ -139,20 +142,16 @@ export function LocationPermission({ onLocationGranted, onLocationDenied }: Loca
             <div className="text-green-600 font-medium">
               ✓ Location access granted
             </div>
-            <Button onClick={onLocationDenied} className="w-full">
-              Continue to App
-            </Button>
+            <p className="text-sm text-gray-500">Redirecting...</p>
           </div>
         )}
 
         {(status === 'denied' || status === 'error') && (
           <div className="space-y-3">
             <div className="text-sm text-gray-600">
-              Don't worry! You can still use the app and enable location later in settings.
+              You can enable location later in settings if needed.
             </div>
-            <Button onClick={onLocationDenied} className="w-full">
-              Continue Without Location
-            </Button>
+            <p className="text-sm text-gray-500">Continuing...</p>
           </div>
         )}
 

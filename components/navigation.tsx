@@ -189,15 +189,15 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
 
         {/* Mobile menu - slides from right */}
         {isMenuOpen && (
-          <div className="fixed inset-0 z-50 md:hidden">
+          <div className="fixed inset-0 z-[100] md:hidden">
             {/* Backdrop */}
             <div
-              className="absolute inset-0 bg-black/50 animate-in fade-in"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
               onClick={() => setIsMenuOpen(false)}
             />
 
             {/* Menu panel */}
-            <div className="absolute right-0 top-0 bottom-0 w-72 bg-background border-l shadow-xl animate-in slide-in-from-right duration-300">
+            <div className="absolute right-0 top-0 bottom-0 w-72 bg-background border-l shadow-2xl animate-in slide-in-from-right duration-300">
               {/* Close button */}
               <div className="flex items-center justify-between p-4 border-b">
                 <h2 className="text-lg font-semibold">Menu</h2>
@@ -213,43 +213,43 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
 
               {/* Menu items */}
               <div className="px-4 py-2 space-y-1">
-              <Button variant="ghost" className="w-full justify-start" asChild>
+              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
                 <Link href="/home" className="flex items-center space-x-2">
                   <Home className="h-4 w-4" />
                   <span>Home</span>
                 </Link>
               </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild>
+              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
                 <Link href="/swipe" className="flex items-center space-x-2">
                   <Heart className="h-4 w-4" />
                   <span>Swipe</span>
                 </Link>
               </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild>
+              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
                 <Link href="/matches" className="flex items-center space-x-2">
                   <Users className="h-4 w-4" />
                   <span>Matches</span>
                 </Link>
               </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild>
+              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
                 <Link href="/likes" className="flex items-center space-x-2">
                   <Star className="h-4 w-4" />
                   <span>Likes</span>
                 </Link>
               </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild>
+              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
                 <Link href="/messages" className="flex items-center space-x-2">
                   <MessageCircle className="h-4 w-4" />
                   <span>Messages</span>
                 </Link>
               </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild>
+              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
                 <Link href="/profile" className="flex items-center space-x-2">
                   <User className="h-4 w-4" />
                   <span>Profile</span>
                 </Link>
               </Button>
-              <Button variant="ghost" className="w-full justify-start" asChild>
+              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
                 <Link href="/settings" className="flex items-center space-x-2">
                   <Settings className="h-4 w-4" />
                   <span>Settings</span>

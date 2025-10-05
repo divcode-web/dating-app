@@ -8,12 +8,34 @@ export type UserProfile = {
   location_city: string | null;
   interests: string[];
   photos: string[];
+
+  // Optional profile fields
+  ethnicity?: string | null;
+  height?: number | null; // in cm
+  education?: string | null;
+  occupation?: string | null;
+  smoking?: string | null;
+  drinking?: string | null;
+  religion?: string | null;
+  relationship_type?: string | null;
+  looking_for?: string[] | null;
+  languages?: string[] | null;
+  children?: string | null;
+
+  // Status fields
   last_active: string;
   is_premium: boolean;
   premium_until: string | null;
+  is_verified?: boolean;
+  verification_status?: string;
+  verification_video_url?: string | null;
+  verification_submitted_at?: string | null;
+  verified_at?: string | null;
+
   created_at: string;
   updated_at: string;
-  // Added fields for SwipeDeck compatibility
+
+  // Computed fields for SwipeDeck compatibility
   name?: string;
   age?: number;
   distance?: number;

@@ -120,6 +120,7 @@ export default function ProfilePage() {
                 </h1>
                 <p className="text-gray-600 mt-2">{profileData.bio}</p>
 
+                {/* Basic Info */}
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   {profileData.location_city && (
                     <div>
@@ -127,6 +128,28 @@ export default function ProfilePage() {
                       <p className="font-medium">{profileData.location_city}</p>
                     </div>
                   )}
+                  {profileData.gender && (
+                    <div>
+                      <p className="text-sm text-gray-500">Gender</p>
+                      <p className="font-medium">{profileData.gender}</p>
+                    </div>
+                  )}
+                  {profileData.ethnicity && (
+                    <div>
+                      <p className="text-sm text-gray-500">Ethnicity</p>
+                      <p className="font-medium">{profileData.ethnicity}</p>
+                    </div>
+                  )}
+                  {profileData.height && (
+                    <div>
+                      <p className="text-sm text-gray-500">Height</p>
+                      <p className="font-medium">{profileData.height} cm</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lifestyle */}
+                <div className="grid grid-cols-2 gap-4 mt-4">
                   {profileData.occupation && (
                     <div>
                       <p className="text-sm text-gray-500">Occupation</p>
@@ -139,14 +162,50 @@ export default function ProfilePage() {
                       <p className="font-medium">{profileData.education}</p>
                     </div>
                   )}
-                  {profileData.height && (
+                  {profileData.smoking && (
                     <div>
-                      <p className="text-sm text-gray-500">Height</p>
-                      <p className="font-medium">{profileData.height} cm</p>
+                      <p className="text-sm text-gray-500">Smoking</p>
+                      <p className="font-medium capitalize">{profileData.smoking}</p>
+                    </div>
+                  )}
+                  {profileData.drinking && (
+                    <div>
+                      <p className="text-sm text-gray-500">Drinking</p>
+                      <p className="font-medium capitalize">{profileData.drinking}</p>
+                    </div>
+                  )}
+                  {profileData.religion && (
+                    <div>
+                      <p className="text-sm text-gray-500">Religion</p>
+                      <p className="font-medium">{profileData.religion}</p>
+                    </div>
+                  )}
+                  {profileData.children && (
+                    <div>
+                      <p className="text-sm text-gray-500">Children</p>
+                      <p className="font-medium capitalize">{profileData.children.replace(/_/g, ' ')}</p>
                     </div>
                   )}
                 </div>
 
+                {/* Languages */}
+                {profileData.languages && profileData.languages.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-500 mb-2">Languages</p>
+                    <div className="flex flex-wrap gap-2">
+                      {profileData.languages.map((language: string, i: number) => (
+                        <span
+                          key={i}
+                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
+                        >
+                          {language}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Interests */}
                 {profileData.interests && profileData.interests.length > 0 && (
                   <div className="mt-4">
                     <p className="text-sm text-gray-500 mb-2">Interests</p>
@@ -159,6 +218,30 @@ export default function ProfilePage() {
                           {interest}
                         </span>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Relationship Preferences */}
+                {(profileData.relationship_type || (profileData.looking_for && profileData.looking_for.length > 0)) && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-500 mb-2">Looking For</p>
+                    <div className="space-y-2">
+                      {profileData.relationship_type && (
+                        <p className="font-medium capitalize">{profileData.relationship_type.replace(/-/g, ' ')}</p>
+                      )}
+                      {profileData.looking_for && profileData.looking_for.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {profileData.looking_for.map((goal: string, i: number) => (
+                            <span
+                              key={i}
+                              className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm capitalize"
+                            >
+                              {goal}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

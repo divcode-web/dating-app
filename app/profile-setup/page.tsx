@@ -39,7 +39,7 @@ export default function ProfileSetupPage() {
     occupation: "",
     education: "",
     location_city: "",
-    height: "",
+    height: undefined as number | undefined,
     relationship_type: "",
     looking_for: [] as string[],
   });
@@ -320,9 +320,9 @@ export default function ProfileSetupPage() {
               <Input
                 id="height"
                 type="number"
-                value={formData.height}
+                value={formData.height || ""}
                 onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, height: e.target.value }))
+                  setFormData((prev) => ({ ...prev, height: e.target.value ? parseInt(e.target.value) : undefined }))
                 }
                 placeholder="175"
                 className="text-lg p-6"

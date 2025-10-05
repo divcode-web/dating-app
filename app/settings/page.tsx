@@ -9,11 +9,16 @@ import { toast } from "react-hot-toast";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
+import { useGeolocation } from "@/components/geolocation-provider";
+import { MapPin, CheckCircle2 } from "lucide-react";
+import { getLocationAccuracy } from "@/lib/matching-score";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { location, requestLocation, locationPermission } = useGeolocation();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [settings, setSettings] = useState({
     emailNotifications: true,
     pushNotifications: true,
@@ -35,6 +40,7 @@ export default function SettingsPage() {
         }
         setUser(user);
         await fetchSettings(user.id);
+        await fetchUserProfile(user.id);
       } catch (error) {
         console.error("Error:", error);
         router.push("/auth");
@@ -45,6 +51,21 @@ export default function SettingsPage() {
 
     checkUser();
   }, [router]);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("location, location_city")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      setUserProfile(data);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  };
 
   // Apply dark mode on mount
   useEffect(() => {
@@ -155,6 +176,66 @@ export default function SettingsPage() {
 
         <TabsContent value="preferences" className="space-y-6">
           <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Location & Matching</h3>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border space-y-4">
+                {(() => {
+                  const accuracy = getLocationAccuracy({
+                    location: location ? { lat: location.lat, lng: location.lng } : null,
+                    location_city: userProfile?.location_city
+                  });
+
+                  return (
+                    <>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MapPin className="w-5 h-5 text-pink-500" />
+                            <span className="font-medium">Location Accuracy</span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {accuracy.description}
+                          </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                              <div
+                                className="bg-gradient-to-r from-pink-500 to-purple-500 h-2 rounded-full transition-all"
+                                style={{ width: `${accuracy.percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              {accuracy.percentage}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {locationPermission !== 'granted' && (
+                        <Button
+                          onClick={() => {
+                            localStorage.removeItem('location-permission');
+                            sessionStorage.removeItem('location-asked');
+                            requestLocation();
+                          }}
+                          className="w-full bg-gradient-to-r from-pink-500 to-purple-500"
+                        >
+                          <MapPin className="w-4 h-4 mr-2" />
+                          Enable GPS Location for Better Matches
+                        </Button>
+                      )}
+
+                      {locationPermission === 'granted' && (
+                        <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                          <CheckCircle2 className="w-5 h-5" />
+                          <span className="text-sm">GPS location enabled - Best matching accuracy!</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+
             <div>
               <h3 className="text-lg font-semibold mb-4">Discovery Preferences</h3>
               <div className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg border">

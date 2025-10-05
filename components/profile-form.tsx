@@ -2,11 +2,19 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { updateUserProfile, uploadPhoto, getUserProfile } from "@/lib/api";
 import { useAuth } from "./auth-provider";
 import { UserProfile } from "@/lib/types";
 import { Upload, X } from "lucide-react";
 import toast from "react-hot-toast";
+
+const SUGGESTED_INTERESTS = [
+  "Travel", "Coffee", "Fitness", "Music", "Foodie", "Movies",
+  "Hiking", "Photography", "Gaming", "Reading", "Yoga", "Cooking",
+  "Art", "Dancing", "Sports", "Fashion", "Tech", "Nature"
+];
 
 export function ProfileForm() {
   const { user } = useAuth();
@@ -19,7 +27,21 @@ export function ProfileForm() {
     bio: "",
     interests: [],
     photos: [],
+    ethnicity: "",
+    height: undefined,
+    education: "",
+    occupation: "",
+    smoking: "",
+    drinking: "",
+    religion: "",
+    relationship_type: "",
+    looking_for: [],
+    languages: [],
+    children: "",
+    location_city: "",
   });
+
+  const [interestInput, setInterestInput] = useState("");
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -46,7 +68,6 @@ export function ProfileForm() {
 
     const file = e.target.files[0];
 
-    // Validate file before upload
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size must be less than 5MB");
       return;
@@ -60,8 +81,6 @@ export function ProfileForm() {
 
     try {
       setLoading(true);
-
-      // Show loading toast
       const loadingToast = toast.loading("Uploading photo...");
 
       const photoUrl = await uploadPhoto(file);
@@ -77,13 +96,11 @@ export function ProfileForm() {
         });
       }
 
-      // Dismiss loading toast and show success
       toast.dismiss(loadingToast);
       toast.success("Photo uploaded successfully!");
     } catch (error: any) {
       console.error('Photo upload error:', error);
 
-      // Provide specific error messages
       let errorMessage = "Failed to upload photo";
 
       if (error.message?.includes('Storage bucket')) {
@@ -99,7 +116,6 @@ export function ProfileForm() {
       toast.error(errorMessage);
     } finally {
       setLoading(false);
-      // Clear the input
       e.target.value = '';
     }
   };
@@ -140,6 +156,34 @@ export function ProfileForm() {
     }
   };
 
+  const addInterest = (interest: string) => {
+    if (interest.trim() && !profile.interests?.includes(interest.trim())) {
+      const newInterests = [...(profile.interests || []), interest.trim()];
+      setProfile((prev) => ({
+        ...prev,
+        interests: newInterests,
+      }));
+      setInterestInput("");
+    }
+  };
+
+  const removeInterest = (index: number) => {
+    const newInterests = [...(profile.interests || [])];
+    newInterests.splice(index, 1);
+    setProfile((prev) => ({
+      ...prev,
+      interests: newInterests,
+    }));
+  };
+
+  const toggleLookingFor = (value: string) => {
+    const current = profile.looking_for || [];
+    const updated = current.includes(value)
+      ? current.filter(v => v !== value)
+      : [...current, value];
+    setProfile((prev) => ({ ...prev, looking_for: updated }));
+  };
+
   if (loadingProfile) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -149,97 +193,150 @@ export function ProfileForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="fullName">Full Name</Label>
-        <Input
-          id="fullName"
-          value={profile.full_name || ""}
-          onChange={(e) =>
-            setProfile((prev) => ({ ...prev, full_name: e.target.value }))
-          }
-          placeholder="Your full name"
-          required
-        />
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Basic Information */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-900">Basic Information</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full Name</Label>
+            <Input
+              id="fullName"
+              value={profile.full_name || ""}
+              onChange={(e) =>
+                setProfile((prev) => ({ ...prev, full_name: e.target.value }))
+              }
+              placeholder="Your full name"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="dateOfBirth">Date of Birth</Label>
+            <Input
+              id="dateOfBirth"
+              type="date"
+              value={profile.date_of_birth || ""}
+              onChange={(e) =>
+                setProfile((prev) => ({ ...prev, date_of_birth: e.target.value }))
+              }
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="gender">Gender</Label>
+            <Select
+              value={profile.gender || ""}
+              onValueChange={(value) =>
+                setProfile((prev) => ({ ...prev, gender: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Male">Male</SelectItem>
+                <SelectItem value="Female">Female</SelectItem>
+                <SelectItem value="Non-binary">Non-binary</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ethnicity">Ethnicity</Label>
+            <Input
+              id="ethnicity"
+              value={profile.ethnicity || ""}
+              onChange={(e) =>
+                setProfile((prev) => ({ ...prev, ethnicity: e.target.value }))
+              }
+              placeholder="e.g., Asian, Black, White, Hispanic..."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="height">Height (cm)</Label>
+            <Input
+              id="height"
+              type="number"
+              value={profile.height || ""}
+              onChange={(e) =>
+                setProfile((prev) => ({ ...prev, height: parseInt(e.target.value) || undefined }))
+              }
+              placeholder="175"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="location">Location</Label>
+            <Input
+              id="location"
+              value={profile.location_city || ""}
+              onChange={(e) =>
+                setProfile((prev) => ({ ...prev, location_city: e.target.value }))
+              }
+              placeholder="City, Country"
+            />
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="dateOfBirth">Date of Birth</Label>
-        <Input
-          id="dateOfBirth"
-          type="date"
-          value={profile.date_of_birth || ""}
-          onChange={(e) =>
-            setProfile((prev) => ({ ...prev, date_of_birth: e.target.value }))
-          }
-          required
-        />
+      {/* Bio */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-900">About Me</h2>
+        <div className="space-y-2">
+          <Label htmlFor="bio">Bio</Label>
+          <Textarea
+            id="bio"
+            value={profile.bio || ""}
+            onChange={(e) =>
+              setProfile((prev) => ({ ...prev, bio: e.target.value }))
+            }
+            className="h-32 resize-none"
+            placeholder="Tell us about yourself..."
+            maxLength={500}
+          />
+          <p className="text-xs text-gray-500 text-right">{(profile.bio || "").length}/500</p>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="gender">Gender</Label>
-        <select
-          id="gender"
-          value={profile.gender || ""}
-          onChange={(e) =>
-            setProfile((prev) => ({ ...prev, gender: e.target.value }))
-          }
-          className="w-full px-3 py-2 border rounded-md"
-          required
-        >
-          <option value="">Select gender</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="bio">Bio</Label>
-        <textarea
-          id="bio"
-          value={profile.bio || ""}
-          onChange={(e) =>
-            setProfile((prev) => ({ ...prev, bio: e.target.value }))
-          }
-          className="w-full px-3 py-2 border rounded-md h-24"
-          placeholder="Tell us about yourself..."
-        />
-      </div>
-
+      {/* Photos */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <Label className="text-base font-semibold">Photos</Label>
+          <h2 className="text-xl font-bold text-gray-900">Photos</h2>
           <span className="text-sm text-gray-500">
-            {(profile.photos?.length || 0)}/6 photos
+            {(profile.photos?.length || 0)}/4 photos
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           {profile.photos?.map((photo, index) => (
             <div key={photo} className="relative aspect-square group">
               <img
                 src={photo}
                 alt={`Profile photo ${index + 1}`}
-                className="w-full h-full object-cover rounded-xl shadow-md transition-transform duration-200 group-hover:scale-105"
+                className="w-full h-full object-cover rounded-xl shadow-md"
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 rounded-xl" />
+              {index === 0 && (
+                <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs px-2 py-1 rounded-full">
+                  Main
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => removePhoto(index)}
-                className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg"
-                title="Remove photo"
+                className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition"
               >
                 <X className="w-4 h-4" />
               </button>
-              <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                Photo {index + 1}
-              </div>
             </div>
           ))}
 
-          {(profile.photos?.length || 0) < 6 && (
-            <label className="aspect-square border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/50 transition-all duration-200 group">
+          {(profile.photos?.length || 0) < 4 && (
+            <label className="aspect-square border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition">
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -247,49 +344,241 @@ export function ProfileForm() {
                 className="hidden"
                 disabled={loading}
               />
-              <div className="flex flex-col items-center space-y-2">
-                {loading ? (
-                  <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Upload className="w-8 h-8 text-gray-400 group-hover:text-purple-500 transition-colors duration-200" />
-                )}
-                <span className="text-sm text-gray-500 group-hover:text-purple-600 transition-colors duration-200">
-                  {loading ? 'Uploading...' : 'Add Photo'}
-                </span>
-              </div>
+              {loading ? (
+                <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                  <span className="text-sm text-gray-500">Add Photo</span>
+                </>
+              )}
             </label>
           )}
         </div>
+      </div>
 
-        {(profile.photos?.length || 0) >= 6 && (
-          <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
-            You've reached the maximum of 6 photos. Remove some photos to add new ones.
-          </p>
-        )}
+      {/* Lifestyle */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-900">Lifestyle</h2>
 
-        <div className="text-xs text-gray-500 space-y-1">
-          <p>• Upload high-quality photos (JPEG, PNG, or WebP)</p>
-          <p>• Maximum file size: 5MB per photo</p>
-          <p>• First photo will be your profile picture</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="occupation">Occupation</Label>
+            <Input
+              id="occupation"
+              value={profile.occupation || ""}
+              onChange={(e) =>
+                setProfile((prev) => ({ ...prev, occupation: e.target.value }))
+              }
+              placeholder="e.g., Software Engineer"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="education">Education</Label>
+            <Input
+              id="education"
+              value={profile.education || ""}
+              onChange={(e) =>
+                setProfile((prev) => ({ ...prev, education: e.target.value }))
+              }
+              placeholder="e.g., Bachelor's in Computer Science"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="smoking">Smoking</Label>
+            <Select
+              value={profile.smoking || ""}
+              onValueChange={(value) =>
+                setProfile((prev) => ({ ...prev, smoking: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="never">Never</SelectItem>
+                <SelectItem value="occasionally">Occasionally</SelectItem>
+                <SelectItem value="regularly">Regularly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="drinking">Drinking</Label>
+            <Select
+              value={profile.drinking || ""}
+              onValueChange={(value) =>
+                setProfile((prev) => ({ ...prev, drinking: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="never">Never</SelectItem>
+                <SelectItem value="occasionally">Socially</SelectItem>
+                <SelectItem value="regularly">Regularly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="religion">Religion</Label>
+            <Input
+              id="religion"
+              value={profile.religion || ""}
+              onChange={(e) =>
+                setProfile((prev) => ({ ...prev, religion: e.target.value }))
+              }
+              placeholder="e.g., Christian, Muslim, Atheist..."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="children">Children</Label>
+            <Select
+              value={profile.children || ""}
+              onValueChange={(value) =>
+                setProfile((prev) => ({ ...prev, children: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="have_children">Have children</SelectItem>
+                <SelectItem value="want_children">Want children</SelectItem>
+                <SelectItem value="dont_want">Don't want children</SelectItem>
+                <SelectItem value="open">Open to children</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="interests">Interests (comma-separated)</Label>
-        <Input
-          id="interests"
-          value={profile.interests?.join(", ") || ""}
-          onChange={(e) =>
-            setProfile((prev) => ({
-              ...prev,
-              interests: e.target.value.split(",").map((i) => i.trim()),
-            }))
-          }
-          placeholder="Travel, Music, Sports..."
-        />
+      {/* Interests */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-900">Interests & Hobbies</h2>
+
+        <div className="space-y-3">
+          <div>
+            <Label className="mb-2 block">Suggested Interests</Label>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTED_INTERESTS.map((interest) => (
+                <button
+                  key={interest}
+                  type="button"
+                  onClick={() => addInterest(interest)}
+                  disabled={profile.interests?.includes(interest)}
+                  className={`px-3 py-1 rounded-full text-sm transition ${
+                    profile.interests?.includes(interest)
+                      ? "bg-pink-500 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-pink-100"
+                  } disabled:opacity-50`}
+                >
+                  {interest}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Input
+              value={interestInput}
+              onChange={(e) => setInterestInput(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addInterest(interestInput))}
+              placeholder="Add custom interest..."
+            />
+            <Button type="button" onClick={() => addInterest(interestInput)}>
+              Add
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {profile.interests?.map((interest, index) => (
+              <div
+                key={index}
+                className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full flex items-center gap-2"
+              >
+                {interest}
+                <button type="button" onClick={() => removeInterest(index)}>
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <Button type="submit" disabled={loading} className="w-full">
+      {/* Languages */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-900">Languages</h2>
+        <div className="space-y-2">
+          <Label htmlFor="languages">Languages (comma-separated)</Label>
+          <Input
+            id="languages"
+            value={profile.languages?.join(", ") || ""}
+            onChange={(e) =>
+              setProfile((prev) => ({
+                ...prev,
+                languages: e.target.value.split(",").map((i) => i.trim()).filter(Boolean),
+              }))
+            }
+            placeholder="English, Spanish, French..."
+          />
+        </div>
+      </div>
+
+      {/* Relationship Preferences */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-900">What I'm Looking For</h2>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="relationshipType">Relationship Type</Label>
+            <Select
+              value={profile.relationship_type || ""}
+              onValueChange={(value) =>
+                setProfile((prev) => ({ ...prev, relationship_type: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select what you're looking for" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="long-term">Long-term partner</SelectItem>
+                <SelectItem value="casual">Short-term fun</SelectItem>
+                <SelectItem value="friendship">Friends</SelectItem>
+                <SelectItem value="figuring-out">Still figuring it out</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>I'm interested in</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {["Friendship", "Dating", "Relationship", "Networking"].map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => toggleLookingFor(option.toLowerCase())}
+                  className={`p-3 rounded-lg border-2 transition text-left ${
+                    profile.looking_for?.includes(option.toLowerCase())
+                      ? "border-pink-500 bg-pink-50"
+                      : "border-gray-200 hover:border-pink-300"
+                  }`}
+                >
+                  <span className="font-medium">{option}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700">
         {loading ? "Saving..." : "Save Profile"}
       </Button>
     </form>

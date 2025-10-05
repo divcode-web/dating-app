@@ -182,16 +182,15 @@ export function GeolocationProvider({ children }: GeolocationProviderProps) {
 
   return (
     <GeolocationContext.Provider value={value}>
-      {showPermissionDialog ? (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      {showPermissionDialog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-300">
           <LocationPermission
             onLocationGranted={handleLocationGranted}
             onLocationDenied={handleLocationDenied}
           />
         </div>
-      ) : (
-        children
       )}
+      {children}
     </GeolocationContext.Provider>
   )
 }
