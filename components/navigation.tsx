@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, Menu, X, Sun, Moon, Heart, MessageCircle, Settings, User, Home, Users, Star } from 'lucide-react'
+import { ChevronLeft, Menu, X, Sun, Moon, Heart, MessageCircle, Settings, User, Home, Users, Star, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from './auth-provider'
 import { useDarkMode } from '@/lib/use-dark-mode'
@@ -167,6 +167,12 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                   <span>Settings</span>
                 </Link>
               </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/blog" className="flex items-center space-x-2">
+                  <BookOpen className="h-4 w-4" />
+                  <span>Blog</span>
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -237,6 +243,12 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                 <Link href="/settings" className="flex items-center space-x-2">
                   <Settings className="h-4 w-4" />
                   <span>Settings</span>
+                </Link>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start" asChild onClick={() => setIsMenuOpen(false)}>
+                <Link href="/blog" className="flex items-center space-x-2">
+                  <BookOpen className="h-4 w-4" />
+                  <span>Blog</span>
                 </Link>
               </Button>
               </div>
