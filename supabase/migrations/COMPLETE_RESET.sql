@@ -49,7 +49,16 @@ DROP TYPE IF EXISTS gender_type CASCADE;
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-CREATE EXTENSION IF NOT EXISTS "postgis";
+
+-- PostGIS extension (optional, for location features)
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS "postgis";
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'PostGIS extension not available, location features will be limited';
+END
+$$;
 
 -- ============================================
 -- STEP 3: CREATE TABLES
@@ -78,8 +87,8 @@ CREATE TABLE user_profiles (
     languages TEXT[],
     children TEXT, -- have_children, want_children, dont_want, open
 
-    -- Location
-    location GEOGRAPHY(POINT),
+    -- Location (optional, requires PostGIS)
+    location GEOMETRY(POINT, 4326),
     location_city TEXT,
     interests TEXT[],
 
@@ -210,7 +219,7 @@ CREATE TABLE reports (
 -- STEP 4: CREATE INDEXES
 -- ============================================
 
-CREATE INDEX idx_user_profiles_location ON user_profiles USING GIST(location);
+CREATE INDEX idx_user_profiles_location ON user_profiles USING GIST(location) WHERE location IS NOT NULL;
 CREATE INDEX idx_user_profiles_last_active ON user_profiles(last_active);
 CREATE INDEX idx_user_profiles_is_premium ON user_profiles(is_premium);
 CREATE INDEX idx_user_profiles_is_verified ON user_profiles(is_verified);
