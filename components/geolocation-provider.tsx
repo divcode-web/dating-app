@@ -34,19 +34,34 @@ interface GeolocationProviderProps {
 export function GeolocationProvider({ children }: GeolocationProviderProps) {
   const { user, loading } = useAuth() // Get user from auth context
   const [location, setLocation] = useState<Location | null>(null)
-  const [permissionStatus, setPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle')
+  const [permissionStatus, setPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('location-permission') as any) || 'idle'
+    }
+    return 'idle'
+  })
   const [showPermissionDialog, setShowPermissionDialog] = useState(false)
+  const [hasCheckedPermission, setHasCheckedPermission] = useState(false)
 
   // Check if we already have location permission on mount
   // ONLY if user is logged in AND not on admin portal
   useEffect(() => {
     // Don't request location if user is not logged in or still loading
-    if (!user || loading) {
+    if (!user || loading || hasCheckedPermission) {
       return
     }
 
     // Don't request location for admin portal
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+      return
+    }
+
+    // If user already denied or granted, don't show dialog again
+    const savedPermission = localStorage.getItem('location-permission')
+    if (savedPermission === 'denied') {
+      setPermissionStatus('denied')
+      setHasCheckedPermission(true)
       return
     }
 
@@ -61,25 +76,36 @@ export function GeolocationProvider({ children }: GeolocationProviderProps) {
                 lng: position.coords.longitude
               })
               setPermissionStatus('granted')
+              localStorage.setItem('location-permission', 'granted')
             },
             () => {
               setPermissionStatus('denied')
+              localStorage.setItem('location-permission', 'denied')
             },
             { timeout: 10000 }
           )
         } else if (result.state === 'denied') {
           setPermissionStatus('denied')
-        } else {
+          localStorage.setItem('location-permission', 'denied')
+        } else if (!savedPermission) {
+          // Only show dialog if we haven't asked before
           setShowPermissionDialog(true)
         }
+        setHasCheckedPermission(true)
       }).catch(() => {
         // Fallback for browsers that don't support permissions API
-        setShowPermissionDialog(true)
+        if (!savedPermission) {
+          setShowPermissionDialog(true)
+        }
+        setHasCheckedPermission(true)
       })
     } else {
-      setShowPermissionDialog(true)
+      if (!savedPermission) {
+        setShowPermissionDialog(true)
+      }
+      setHasCheckedPermission(true)
     }
-  }, [user, loading])
+  }, [user, loading, hasCheckedPermission])
 
   const requestLocation = async (): Promise<void> => {
     return new Promise((resolve) => {
@@ -92,11 +118,13 @@ export function GeolocationProvider({ children }: GeolocationProviderProps) {
   const handleLocationGranted = (newLocation: Location) => {
     setLocation(newLocation)
     setPermissionStatus('granted')
+    localStorage.setItem('location-permission', 'granted')
     setShowPermissionDialog(false)
   }
 
   const handleLocationDenied = () => {
     setPermissionStatus('denied')
+    localStorage.setItem('location-permission', 'denied')
     setShowPermissionDialog(false)
   }
 
