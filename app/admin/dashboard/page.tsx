@@ -456,7 +456,7 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2 mb-2">
                             <h3 className="text-lg font-semibold text-white">{user.full_name}</h3>
                             {user.is_verified && (
-                              <CheckCircle className="w-5 h-5 text-blue-500" title="Verified" />
+                              <CheckCircle className="w-5 h-5 text-blue-500" />
                             )}
                             {user.is_premium && (
                               <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full">
