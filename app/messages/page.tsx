@@ -38,6 +38,13 @@ interface AdminMessage {
   message_type: string;
   created_at: string;
   is_read: boolean;
+  sender?: {
+    id: string;
+    full_name: string;
+    photos: string[];
+    is_verified: boolean;
+    is_premium: boolean;
+  };
 }
 
 export default function MessagesPage() {
@@ -67,14 +74,30 @@ export default function MessagesPage() {
 
   const loadAdminMessages = async () => {
     try {
+      // Load messages from admin users (messages without match_id)
       const { data } = await supabase
-        .from("admin_messages")
-        .select("*")
-        .eq("recipient_id", user?.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .from("messages")
+        .select(`
+          *,
+          sender:user_profiles!messages_sender_id_fkey(id, full_name, photos, is_verified, is_premium)
+        `)
+        .eq("receiver_id", user?.id)
+        .is("match_id", null)
+        .order("sent_at", { ascending: false });
 
-      setAdminMessages(data || []);
+      if (data) {
+        // Transform to admin messages format
+        const adminMsgs = data.map(msg => ({
+          id: msg.id,
+          subject: '',
+          content: msg.content,
+          message_type: 'system',
+          created_at: msg.sent_at,
+          is_read: msg.is_read || false,
+          sender: msg.sender
+        }));
+        setAdminMessages(adminMsgs as any);
+      }
     } catch (error) {
       console.error("Error loading admin messages:", error);
     }
@@ -82,7 +105,11 @@ export default function MessagesPage() {
 
   const markAsRead = async (messageId: string) => {
     try {
-      await supabase.rpc("mark_admin_message_read", { message_id: messageId });
+      await supabase
+        .from("messages")
+        .update({ is_read: true })
+        .eq("id", messageId);
+
       setAdminMessages(prev =>
         prev.map(msg => msg.id === messageId ? { ...msg, is_read: true } : msg)
       );
@@ -363,19 +390,26 @@ export default function MessagesPage() {
                         selectedAdminMessage?.id === msg.id ? "bg-blue-100" : ""
                       } ${!msg.is_read ? "font-semibold" : ""}`}
                     >
-                      <div className="flex items-start gap-2">
-                        <MessageCircle className="w-4 h-4 text-blue-600 mt-1 flex-shrink-0" />
+                      <div className="flex items-start gap-3">
+                        <img
+                          src={msg.sender?.photos?.[0] || "/default-avatar.png"}
+                          alt={msg.sender?.full_name || "Admin"}
+                          className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-blue-900 truncate">
-                            {msg.subject}
+                            {msg.sender?.full_name || "System Message"}
                           </div>
-                          <div className="text-xs text-blue-700 truncate">
+                          <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
                             {msg.content.substring(0, 50)}...
                           </div>
-                          <div className="text-xs text-blue-600 mt-1">
+                          <div className="text-xs text-gray-500 mt-1">
                             {format(new Date(msg.created_at), "MMM d, h:mm a")}
                           </div>
                         </div>
+                        {!msg.is_read && (
+                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -420,42 +454,34 @@ export default function MessagesPage() {
             {selectedAdminMessage ? (
               /* Admin Message View */
               <div className="flex flex-col h-full">
-                <div className="p-4 border-b bg-gradient-to-r from-blue-500 to-indigo-600">
+                <div className="p-4 border-b bg-gradient-to-r from-pink-500 to-purple-600">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                        <MessageCircle className="w-6 h-6 text-blue-600" />
-                      </div>
+                      <img
+                        src={selectedAdminMessage.sender?.photos?.[0] || "/default-avatar.png"}
+                        alt={selectedAdminMessage.sender?.full_name || "Admin"}
+                        className="w-10 h-10 rounded-full object-cover border-2 border-white"
+                      />
                       <div className="text-white">
-                        <h3 className="font-semibold">{selectedAdminMessage.subject}</h3>
-                        <p className="text-xs text-blue-100">
-                          System Message • {format(new Date(selectedAdminMessage.created_at), "MMM d, yyyy 'at' h:mm a")}
+                        <h3 className="font-semibold">{selectedAdminMessage.sender?.full_name || "Admin Team"}</h3>
+                        <p className="text-xs text-pink-100">
+                          {format(new Date(selectedAdminMessage.created_at), "MMM d, yyyy 'at' h:mm a")}
                         </p>
                       </div>
                     </div>
-                    <span className="px-3 py-1 bg-white/20 text-white text-xs rounded-full font-medium">
-                      {selectedAdminMessage.message_type.toUpperCase()}
-                    </span>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
-                  {/* Notice Banner */}
-                  <div className="mb-4 bg-blue-100 border-l-4 border-blue-500 p-4 rounded">
-                    <p className="text-sm text-blue-800 flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4" />
-                      This is a system message from the admin team. You cannot reply to this message.
-                    </p>
+                <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
+                  {/* Message Content */}
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+                    <div className="space-y-3 whitespace-pre-wrap">
+                      {selectedAdminMessage.content}
+                    </div>
                   </div>
 
-                  {/* Message Content */}
-                  <div className="bg-white rounded-lg p-6 shadow-md border border-blue-100">
-                    <div className="space-y-3">
-                      {selectedAdminMessage.content.split('\n').map((line, i) => (
-                        <p key={i} className="text-gray-700 leading-relaxed">
-                          {line || <br />}
-                        </p>
-                      ))}
-                    </div>
+                  {/* Info Notice */}
+                  <div className="mt-4 text-xs text-gray-500 text-center">
+                    Messages from admin cannot be replied to
                   </div>
                 </div>
               </div>
