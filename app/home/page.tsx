@@ -30,6 +30,54 @@ export default function HomePage() {
     if (user?.id) {
       loadStats();
       loadRecentActivity();
+
+      // Real-time subscription for message count updates
+      const channel = supabase
+        .channel('home-messages-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages'
+          },
+          (payload) => {
+            const newMsg = payload.new as any;
+            // Only count messages from others, not from yourself
+            if (newMsg.sender_id !== user.id) {
+              setStats((prev) => ({
+                ...prev,
+                messages: prev.messages + 1
+              }));
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages'
+          },
+          (payload) => {
+            const updatedMsg = payload.new as any;
+            const oldMsg = payload.old as any;
+            // Decrease count when message is marked as read
+            if (updatedMsg.sender_id !== user.id &&
+                updatedMsg.is_read &&
+                !oldMsg.is_read) {
+              setStats((prev) => ({
+                ...prev,
+                messages: Math.max(0, prev.messages - 1)
+              }));
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        channel.unsubscribe();
+      };
     }
   }, [user?.id]);
 

@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "./auth-provider";
 import { useDarkMode } from "@/lib/use-dark-mode";
+import { supabase } from "@/lib/supabase";
 
 interface NavigationProps {
   showBackButton?: boolean;
@@ -33,6 +34,86 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
   const { isDarkMode, toggleDarkMode } = useDarkMode(user?.id);
   const router = useRouter();
   const pathname = usePathname();
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [newMatches, setNewMatches] = useState(0);
+
+  // Load counts with REAL-TIME updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadCounts = async () => {
+      // Get unread messages count
+      const { data: matches } = await supabase
+        .from("matches")
+        .select("id")
+        .or(`user_id_1.eq.${user.id},user_id_2.eq.${user.id}`);
+
+      if (matches) {
+        const matchIds = matches.map((m) => m.id);
+        const { count } = await supabase
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .in("match_id", matchIds)
+          .neq("sender_id", user.id)
+          .eq("is_read", false);
+
+        setUnreadMessages(count || 0);
+      }
+
+      // Get new matches count (matches user hasn't viewed yet)
+      const { count: matchCount } = await supabase
+        .from("matches")
+        .select("*", { count: "exact", head: true })
+        .or(`user_id_1.eq.${user.id},user_id_2.eq.${user.id}`)
+        .eq("viewed", false);
+
+      setNewMatches(matchCount || 0);
+    };
+
+    loadCounts();
+
+    // Real-time subscription for messages badge
+    const messagesChannel = supabase
+      .channel('nav-messages-rt')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const newMsg = payload.new as any;
+        if (newMsg.sender_id !== user.id) {
+          setUnreadMessages((prev) => prev + 1);
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+        const updatedMsg = payload.new as any;
+        const oldMsg = payload.old as any;
+        if (updatedMsg.sender_id !== user.id && updatedMsg.is_read && !oldMsg.is_read) {
+          setUnreadMessages((prev) => Math.max(0, prev - 1));
+        }
+      })
+      .subscribe();
+
+    // Real-time subscription for matches badge
+    const matchesChannel = supabase
+      .channel('nav-matches-rt')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches' }, (payload) => {
+        const newMatch = payload.new as any;
+        if (newMatch.user_id_1 === user.id || newMatch.user_id_2 === user.id) {
+          setNewMatches((prev) => prev + 1);
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' }, (payload) => {
+        const updatedMatch = payload.new as any;
+        const oldMatch = payload.old as any;
+        if ((updatedMatch.user_id_1 === user.id || updatedMatch.user_id_2 === user.id) &&
+            updatedMatch.viewed && !oldMatch.viewed) {
+          setNewMatches((prev) => Math.max(0, prev - 1));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      messagesChannel.unsubscribe();
+      matchesChannel.unsubscribe();
+    };
+  }, [user?.id]);
 
   // Handle body scroll when mobile menu is open
   useEffect(() => {
@@ -168,9 +249,14 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/matches" className="flex items-center space-x-2">
+                <Link href="/matches" className="flex items-center space-x-2 relative">
                   <Users className="h-4 w-4" />
                   <span>Matches</span>
+                  {newMatches > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+                      {newMatches > 99 ? '99+' : newMatches}
+                    </span>
+                  )}
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" asChild>
@@ -180,9 +266,14 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/messages" className="flex items-center space-x-2">
+                <Link href="/messages" className="flex items-center space-x-2 relative">
                   <MessageCircle className="h-4 w-4" />
                   <span>Messages</span>
+                  {unreadMessages > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+                      {unreadMessages > 99 ? '99+' : unreadMessages}
+                    </span>
+                  )}
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" asChild>
@@ -263,9 +354,14 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                   asChild
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <Link href="/matches" className="flex items-center space-x-2">
+                  <Link href="/matches" className="flex items-center space-x-2 relative">
                     <Users className="h-4 w-4" />
                     <span>Matches</span>
+                    {newMatches > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                        {newMatches > 99 ? '99+' : newMatches}
+                      </span>
+                    )}
                   </Link>
                 </Button>
                 <Button
@@ -287,10 +383,15 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                 >
                   <Link
                     href="/messages"
-                    className="flex items-center space-x-2"
+                    className="flex items-center space-x-2 relative"
                   >
                     <MessageCircle className="h-4 w-4" />
                     <span>Messages</span>
+                    {unreadMessages > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                        {unreadMessages > 99 ? '99+' : unreadMessages}
+                      </span>
+                    )}
                   </Link>
                 </Button>
                 <Button

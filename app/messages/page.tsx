@@ -70,6 +70,8 @@ export default function MessagesPage() {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const adminMessagesEndRef = useRef<HTMLDivElement>(null);
   const adminMessagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -265,11 +267,16 @@ export default function MessagesPage() {
   };
 
   useEffect(() => {
-    if (selectedMatch) {
+    if (selectedMatch && user?.id) {
       loadMessages(selectedMatch.id);
-      // Subscribe to real-time updates
-      const subscription = supabase
-        .channel("messages")
+
+      const otherUserId = selectedMatch.user_id_1 === user.id
+        ? selectedMatch.user_id_2
+        : selectedMatch.user_id_1;
+
+      // Subscribe to real-time message updates
+      const messagesChannel = supabase
+        .channel(`match-${selectedMatch.id}-messages`)
         .on(
           "postgres_changes",
           {
@@ -280,15 +287,39 @@ export default function MessagesPage() {
           },
           (payload) => {
             setMessages((prev) => [...prev, payload.new as Message]);
+            // Auto-scroll to bottom when new message arrives
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
           }
         )
         .subscribe();
 
+      // Subscribe to typing indicator (Broadcast - 6ms latency!)
+      const typingChannel = supabase
+        .channel(`match-${selectedMatch.id}-typing`)
+        .on("broadcast", { event: "typing" }, ({ payload }) => {
+          if (payload.userId === otherUserId) {
+            setTypingUsers((prev) => new Set(prev).add(otherUserId));
+
+            // Auto-clear typing after 3 seconds
+            setTimeout(() => {
+              setTypingUsers((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(otherUserId);
+                return newSet;
+              });
+            }, 3000);
+          }
+        })
+        .subscribe();
+
       return () => {
-        subscription.unsubscribe();
+        messagesChannel.unsubscribe();
+        typingChannel.unsubscribe();
       };
     }
-  }, [selectedMatch?.id]);
+  }, [selectedMatch?.id, user?.id]);
 
   const loadMatches = async () => {
     try {
@@ -354,6 +385,32 @@ export default function MessagesPage() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleTyping = () => {
+    if (!selectedMatch || !user?.id) return;
+
+    // Broadcast typing using fast Broadcast channel (6ms latency)
+    const channel = supabase.channel(`match-${selectedMatch.id}-typing`);
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: user.id }
+        });
+      }
+    });
+
+    // Clear previous timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Unsubscribe after 1 second
+    typingTimeoutRef.current = setTimeout(() => {
+      channel.unsubscribe();
+    }, 1000);
   };
 
   const handleSendMessage = async () => {
@@ -999,6 +1056,24 @@ export default function MessagesPage() {
                       </div>
                     </div>
                   ))}
+
+                  {/* Typing Indicator */}
+                  {selectedMatch && typingUsers.has(
+                    selectedMatch.user_id_1 === user?.id
+                      ? selectedMatch.user_id_2
+                      : selectedMatch.user_id_1
+                  ) && (
+                    <div className="mb-4 flex justify-start">
+                      <div className="max-w-xs px-4 py-3 rounded-2xl bg-gray-100 rounded-bl-md">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -1041,7 +1116,10 @@ export default function MessagesPage() {
                     </Button>
                     <Input
                       value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
+                      onChange={(e) => {
+                        setNewMessage(e.target.value);
+                        handleTyping();
+                      }}
                       placeholder="Type a message..."
                       onKeyPress={(e) =>
                         e.key === "Enter" && !uploading && handleSendMessage()
