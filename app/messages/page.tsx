@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Match, Message, UserProfile } from "@/lib/types";
 import { getUserProfile, getMessages, sendMessage } from "@/lib/api";
 import { format } from "date-fns";
-import { Send, Image, MessageCircle, X, Flag, UserX, Eye, Bell, ArrowDown } from "lucide-react";
+import { Send, Image, MessageCircle, X, Flag, UserX, Eye, Bell, ArrowDown, ArrowLeft } from "lucide-react";
 import { encryptMessage, decryptMessage } from "@/lib/encryption";
 
 interface MatchWithProfile extends Match {
@@ -473,7 +473,7 @@ export default function MessagesPage() {
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden h-[calc(100vh-2rem)]">
         <div className="grid grid-cols-1 md:grid-cols-3 h-full">
           {/* Matches List */}
-          <div className="border-r hidden md:block h-full">
+          <div className={`border-r h-full ${selectedMatch || selectedAdminMessage ? 'hidden md:block' : 'block'}`}>
             <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Messages</h2>
               {/* Admin Notification Bell */}
@@ -572,9 +572,20 @@ export default function MessagesPage() {
           </div>
 
           {/* Chat Area */}
-          <div className="col-span-1 md:col-span-2 h-full flex flex-col overflow-hidden">
+          <div className={`col-span-1 md:col-span-2 h-full flex-col overflow-hidden ${selectedMatch || selectedAdminMessage ? 'flex' : 'hidden md:flex'}`}>
             {/* Mobile Header with Bell Icon */}
             <div className="md:hidden p-4 border-b flex items-center justify-between bg-white">
+              {(selectedMatch || selectedAdminMessage) && (
+                <button
+                  onClick={() => {
+                    setSelectedMatch(null);
+                    setSelectedAdminMessage(null);
+                  }}
+                  className="mr-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              )}
               <h2 className="text-xl font-semibold">Messages</h2>
               {adminMessages.length > 0 && (
                 <div className="relative">
