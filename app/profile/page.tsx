@@ -74,6 +74,8 @@ export default function ProfilePage() {
         .eq("id", userId)
         .single();
 
+      console.log("🔍 PROFILE-PAGE DEBUG: Loaded profile data:", data);
+
       if (error) throw error;
       setProfileData(data);
 
@@ -369,13 +371,66 @@ export default function ProfilePage() {
                           <p className="font-medium">{profileData.height} cm</p>
                         </div>
                       )}
+                      {profileData.ethnicity && (
+                        <div>
+                          <p className="text-sm text-gray-500">Ethnicity</p>
+                          <p className="font-medium">{profileData.ethnicity}</p>
+                        </div>
+                      )}
                       {profileData.occupation && (
                         <div>
                           <p className="text-sm text-gray-500">Occupation</p>
                           <p className="font-medium">{profileData.occupation}</p>
                         </div>
                       )}
+                      {profileData.education && (
+                        <div>
+                          <p className="text-sm text-gray-500">Education</p>
+                          <p className="font-medium">{profileData.education}</p>
+                        </div>
+                      )}
+                      {profileData.smoking && (
+                        <div>
+                          <p className="text-sm text-gray-500">Smoking</p>
+                          <p className="font-medium capitalize">{profileData.smoking}</p>
+                        </div>
+                      )}
+                      {profileData.drinking && (
+                        <div>
+                          <p className="text-sm text-gray-500">Drinking</p>
+                          <p className="font-medium capitalize">{profileData.drinking}</p>
+                        </div>
+                      )}
+                      {profileData.religion && (
+                        <div>
+                          <p className="text-sm text-gray-500">Religion</p>
+                          <p className="font-medium">{profileData.religion}</p>
+                        </div>
+                      )}
+                      {profileData.children && (
+                        <div>
+                          <p className="text-sm text-gray-500">Children</p>
+                          <p className="font-medium capitalize">{profileData.children.replace(/_/g, ' ')}</p>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Languages */}
+                    {profileData.languages && profileData.languages.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-500 mb-2">Languages</p>
+                        <div className="flex flex-wrap gap-2">
+                          {profileData.languages.map((language: string, i: number) => (
+                            <span
+                              key={i}
+                              className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm"
+                            >
+                              {language}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Interests */}
                     {profileData.interests && profileData.interests.length > 0 && (
@@ -390,6 +445,30 @@ export default function ProfilePage() {
                               {interest}
                             </span>
                           ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Relationship Preferences */}
+                    {(profileData.relationship_type || (profileData.looking_for && profileData.looking_for.length > 0)) && (
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-500 mb-2">Looking For</p>
+                        <div className="space-y-2">
+                          {profileData.relationship_type && (
+                            <p className="font-medium capitalize">{profileData.relationship_type.replace(/-/g, ' ')}</p>
+                          )}
+                          {profileData.looking_for && profileData.looking_for.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {profileData.looking_for.map((goal: string, i: number) => (
+                                <span
+                                  key={i}
+                                  className="px-3 py-1 bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-300 rounded-full text-sm capitalize"
+                                >
+                                  {goal}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

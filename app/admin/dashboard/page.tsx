@@ -357,12 +357,12 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-3">
             <Button
-              onClick={() => router.push('/messages')}
+              onClick={() => router.push('/admin/inbox')}
               variant="outline"
               className="bg-white/10 border-white/20 text-white hover:bg-white/20"
             >
               <MessageSquare className="w-4 h-4 mr-2" />
-              User Messages
+              User Messages Inbox
             </Button>
             <Button
               onClick={() => router.push('/admin/messaging')}

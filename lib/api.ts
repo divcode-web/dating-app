@@ -168,26 +168,91 @@ export async function updatePremiumStatus(userId: string, isPremium: boolean, pr
 
 // Discovery
 export async function getDiscoveryProfiles(userId: string, settings: UserSettings) {
+  // Get user's location
   const { data: userProfile } = await supabase
     .from('user_profiles')
-    .select('location')
+    .select('location_city')
     .eq('id', userId)
     .single();
 
-  if (!userProfile?.location) return [];
+  const userLocation = userProfile?.location_city;
 
-  // Complex query to get profiles based on user preferences
-  const { data, error } = await supabase
+  // Get already liked/passed users to exclude them
+  const { data: alreadyLiked } = await supabase
+    .from('likes')
+    .select('to_user_id')
+    .eq('from_user_id', userId);
+
+  const excludedIds = alreadyLiked?.map(like => like.to_user_id) || [];
+
+  // Build base query
+  let baseQuery = supabase
     .from('user_profiles')
     .select('*')
-    .not('id', 'eq', userId)
-    .containedBy('gender', settings.show_me_gender)
-    .filter('date_of_birth', 'gte', new Date(Date.now() - settings.age_max * 365 * 24 * 60 * 60 * 1000).toISOString())
-    .filter('date_of_birth', 'lte', new Date(Date.now() - settings.age_min * 365 * 24 * 60 * 60 * 1000).toISOString())
-    .limit(50);
+    .neq('id', userId);
 
-  if (error) throw error;
-  return data;
+  // Exclude already liked profiles
+  if (excludedIds.length > 0) {
+    baseQuery = baseQuery.not('id', 'in', `(${excludedIds.join(',')})`);
+  }
+
+  // Filter by gender if specified
+  if (settings.show_me_gender && settings.show_me_gender.length > 0) {
+    baseQuery = baseQuery.in('gender', settings.show_me_gender);
+  }
+
+  // Filter by age range - use safe date calculations
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const currentDay = new Date().getDate();
+
+  const maxBirthYear = currentYear - (settings.age_max || 100);
+  const minBirthYear = currentYear - (settings.age_min || 18);
+
+  const maxDate = new Date(maxBirthYear, currentMonth, currentDay);
+  const minDate = new Date(minBirthYear, currentMonth, currentDay);
+
+  baseQuery = baseQuery
+    .gte('date_of_birth', maxDate.toISOString())
+    .lte('date_of_birth', minDate.toISOString());
+
+  // Get 80% from same location
+  let sameLocationProfiles: any[] = [];
+  if (userLocation) {
+    const sameLocationQuery = baseQuery.eq('location_city', userLocation).limit(40);
+    const { data: sameLocData } = await sameLocationQuery;
+    sameLocationProfiles = sameLocData || [];
+  }
+
+  // Get 20% from other locations
+  let otherLocationProfiles: any[] = [];
+  const remainingCount = 50 - sameLocationProfiles.length;
+  if (remainingCount > 0) {
+    let otherQuery = baseQuery;
+    if (userLocation) {
+      otherQuery = otherQuery.neq('location_city', userLocation);
+    }
+    // Exclude profiles already in same location list
+    const sameLocIds = sameLocationProfiles.map(p => p.id);
+    if (sameLocIds.length > 0) {
+      otherQuery = otherQuery.not('id', 'in', `(${sameLocIds.join(',')})`);
+    }
+    otherQuery = otherQuery.limit(remainingCount);
+    const { data: otherData } = await otherQuery;
+    otherLocationProfiles = otherData || [];
+  }
+
+  // Combine profiles (80% same location, 20% others)
+  const allProfiles = [...sameLocationProfiles, ...otherLocationProfiles];
+
+  // Add distance info
+  const profiles = allProfiles.map(profile => ({
+    ...profile,
+    distance: profile.location_city === userLocation ? 0 : 10
+  }));
+
+  console.log(`Discovery: Found ${profiles.length} profiles (${sameLocationProfiles.length} same location, ${otherLocationProfiles.length} other locations) for user ${userId}`);
+  return profiles;
 }
 
 // Photo Upload

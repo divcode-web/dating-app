@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Heart, MessageCircle, Star, TrendingUp, Users, Zap } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
+interface RecentActivity {
+  type: 'match' | 'like' | 'message';
+  name: string;
+  time: string;
+  photo?: string;
+}
+
 export default function HomePage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -17,10 +24,12 @@ export default function HomePage() {
     messages: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
 
   useEffect(() => {
     if (user?.id) {
       loadStats();
+      loadRecentActivity();
     }
   }, [user?.id]);
 
@@ -63,6 +72,80 @@ export default function HomePage() {
       console.error("Error loading stats:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRecentActivity = async () => {
+    try {
+      const activities: RecentActivity[] = [];
+
+      // Get recent matches (last 5)
+      const { data: matches } = await supabase
+        .from("matches")
+        .select(`
+          matched_at,
+          user_id_1,
+          user_id_2
+        `)
+        .or(`user_id_1.eq.${user?.id},user_id_2.eq.${user?.id}`)
+        .order("matched_at", { ascending: false })
+        .limit(5);
+
+      if (matches) {
+        for (const match of matches) {
+          const otherId = match.user_id_1 === user?.id ? match.user_id_2 : match.user_id_1;
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("full_name, photos")
+            .eq("id", otherId)
+            .single();
+
+          if (profile) {
+            activities.push({
+              type: 'match',
+              name: profile.full_name,
+              time: match.matched_at,
+              photo: profile.photos?.[0]
+            });
+          }
+        }
+      }
+
+      // Get recent likes received (last 3)
+      const { data: likes } = await supabase
+        .from("likes")
+        .select(`
+          created_at,
+          from_user_id
+        `)
+        .eq("to_user_id", user?.id)
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (likes) {
+        for (const like of likes) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("full_name, photos")
+            .eq("id", like.from_user_id)
+            .single();
+
+          if (profile) {
+            activities.push({
+              type: 'like',
+              name: profile.full_name,
+              time: like.created_at,
+              photo: profile.photos?.[0]
+            });
+          }
+        }
+      }
+
+      // Sort by time and take top 5
+      activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+      setRecentActivity(activities.slice(0, 5));
+    } catch (error) {
+      console.error("Error loading recent activity:", error);
     }
   };
 
@@ -163,9 +246,47 @@ export default function HomePage() {
             <TrendingUp className="w-5 h-5 mr-2 text-pink-500" />
             <h3 className="text-xl font-semibold">Recent Activity</h3>
           </div>
-          <div className="text-center py-8 text-gray-500">
-            <p>Your activity will appear here</p>
-          </div>
+          {recentActivity.length > 0 ? (
+            <div className="space-y-3">
+              {recentActivity.map((activity, index) => (
+                <div key={index} className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                  <img
+                    src={activity.photo || '/default-avatar.png'}
+                    alt={activity.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm">
+                      {activity.type === 'match' && (
+                        <>
+                          <Heart className="w-4 h-4 inline text-pink-500 mr-1" />
+                          You matched with <span className="font-semibold">{activity.name}</span>
+                        </>
+                      )}
+                      {activity.type === 'like' && (
+                        <>
+                          <Star className="w-4 h-4 inline text-purple-500 mr-1" />
+                          <span className="font-semibold">{activity.name}</span> liked you
+                        </>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(activity.time).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>Your activity will appear here</p>
+            </div>
+          )}
         </Card>
       </div>
     </div>

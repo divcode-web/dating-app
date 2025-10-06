@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { SwipeCard } from './swipe-card'
 import { MatchNotification } from './match-notification'
 import { Button } from '@/components/ui/button'
-import { RotateCcw, Settings } from 'lucide-react'
+import { RotateCcw, Settings, X, Star, Heart } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface Profile {
@@ -32,48 +32,14 @@ export function SwipeDeck({ profiles, onSwipe, onRefresh, isLoading }: SwipeDeck
   const [showMatchNotification, setShowMatchNotification] = useState(false)
   const [matchedUser, setMatchedUser] = useState<any>(null)
 
-  // Mock match detection - in real app, this would come from backend
-  const checkForMatch = (profileId: string, direction: 'left' | 'right' | 'up') => {
-    if (direction === 'right') {
-      // Simulate 30% chance of match when liking
-      if (Math.random() < 0.3) {
-        const profile = profiles.find(p => p.id === profileId)
-        if (profile) {
-          setMatchedUser(profile)
-          setShowMatchNotification(true)
-          return true
-        }
-      }
-    }
-    return false
-  }
-
   const handleSwipe = (direction: 'left' | 'right' | 'up') => {
     if (currentIndex >= profiles.length) return
 
     const currentProfile = profiles[currentIndex]
     setSwipeDirection(direction)
 
-    // Check for match before calling parent callback
-    const isMatch = checkForMatch(currentProfile.id, direction)
-
-    // Call the parent onSwipe callback
+    // Call the parent onSwipe callback (handles real match detection)
     onSwipe(currentProfile.id, direction)
-
-    // Show appropriate toast message (only if not a match)
-    if (!isMatch) {
-      switch (direction) {
-        case 'right':
-          toast.success(`You liked ${currentProfile.name}!`)
-          break
-        case 'left':
-          toast('You passed on ' + currentProfile.name)
-          break
-        case 'up':
-          toast.success(`Super liked ${currentProfile.name}! ✨`)
-          break
-      }
-    }
 
     // Move to next card after animation
     setTimeout(() => {
@@ -145,9 +111,9 @@ export function SwipeDeck({ profiles, onSwipe, onRefresh, isLoading }: SwipeDeck
 
   return (
     <>
-      <div className="relative w-full max-w-sm mx-auto h-[600px]">
+      <div className="relative w-full max-w-sm mx-auto">
         {/* Card Stack */}
-        <div className="relative w-full h-full">
+        <div className="relative w-full h-[calc(100vh-16rem)] max-h-[550px] mb-6">
           <AnimatePresence>
             {remainingCards.map((profile, index) => (
               <SwipeCard
@@ -161,25 +127,55 @@ export function SwipeDeck({ profiles, onSwipe, onRefresh, isLoading }: SwipeDeck
           </AnimatePresence>
         </div>
 
+        {/* Action Buttons - Outside Card */}
+        <div className="flex justify-center items-center space-x-4 mb-4">
+          <Button
+            onClick={() => handleSwipe('left')}
+            className="w-16 h-16 rounded-full bg-white hover:bg-gray-50 shadow-lg border-2 border-gray-200"
+            size="icon"
+            disabled={currentIndex >= profiles.length}
+          >
+            <X className="w-7 h-7 text-red-500" />
+          </Button>
+
+          <Button
+            onClick={() => handleSwipe('up')}
+            className="w-14 h-14 rounded-full bg-white hover:bg-gray-50 shadow-lg border-2 border-gray-200"
+            size="icon"
+            disabled={currentIndex >= profiles.length}
+          >
+            <Star className="w-6 h-6 text-blue-500" />
+          </Button>
+
+          <Button
+            onClick={() => handleSwipe('right')}
+            className="w-16 h-16 rounded-full bg-white hover:bg-gray-50 shadow-lg border-2 border-gray-200"
+            size="icon"
+            disabled={currentIndex >= profiles.length}
+          >
+            <Heart className="w-7 h-7 text-green-500" fill="currentColor" />
+          </Button>
+        </div>
+
         {/* Bottom Controls */}
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-4">
+        <div className="flex items-center justify-between px-4">
           <Button
             onClick={handleRefresh}
             variant="outline"
             size="sm"
-            className="rounded-full w-10 h-10 p-0 border-gray-300"
+            className="rounded-full w-10 h-10 p-0"
           >
             <RotateCcw className="w-4 h-4" />
           </Button>
 
-          <div className="text-sm text-gray-500">
-            {Math.max(0, profiles.length - currentIndex)} left
+          <div className="text-sm text-gray-500 font-medium">
+            {Math.max(0, profiles.length - currentIndex)} profiles left
           </div>
 
           <Button
             variant="outline"
             size="sm"
-            className="rounded-full w-10 h-10 p-0 border-gray-300"
+            className="rounded-full w-10 h-10 p-0"
           >
             <Settings className="w-4 h-4" />
           </Button>

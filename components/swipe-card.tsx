@@ -27,6 +27,7 @@ interface SwipeCardProps {
 export function SwipeCard({ profile, onSwipe, onCardLeave, isTop }: SwipeCardProps) {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [showMore, setShowMore] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const { location, calculateDistance } = useGeolocation()
 
@@ -95,8 +96,8 @@ export function SwipeCard({ profile, onSwipe, onCardLeave, isTop }: SwipeCardPro
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
       <div className="relative w-full h-full bg-white rounded-3xl shadow-2xl overflow-hidden">
-        {/* Photo */}
-        <div className="relative h-3/4 bg-gray-200">
+        {/* Photo - Full card */}
+        <div className="relative w-full h-full bg-gray-200">
           {profile.photos.length > 0 ? (
             <img
               src={profile.photos[currentPhotoIndex]}
@@ -150,72 +151,96 @@ export function SwipeCard({ profile, onSwipe, onCardLeave, isTop }: SwipeCardPro
               </button>
             </>
           )}
-        </div>
 
-        {/* Profile Info */}
-        <div className="p-6 h-1/4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center space-x-2 mb-2">
-              <h3 className="text-2xl font-bold text-gray-800">{profile.name}</h3>
-              <span className="text-xl text-gray-600">{profile.age}</span>
-              {profile.isOnline && (
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-              )}
+          {/* User Info Overlay - Bottom of Photo */}
+          <div
+            className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent text-white transition-all duration-300 ${
+              showMore ? 'p-6 max-h-[70%] overflow-y-auto' : 'p-6'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-2">
+                <h3 className="text-2xl md:text-3xl font-bold">{profile.name}</h3>
+                <span className="text-xl md:text-2xl">{profile.age}</span>
+                {profile.isOnline && (
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                )}
+              </div>
+              <button
+                onClick={() => setShowMore(!showMore)}
+                className="text-xs px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
+              >
+                {showMore ? 'Show Less' : 'Show More'}
+              </button>
             </div>
 
-            <p className="text-gray-600 mb-3 line-clamp-2">{profile.bio}</p>
-
             {/* Distance */}
-            <div className="flex items-center text-gray-500 text-sm mb-3">
+            <div className="flex items-center text-white/90 text-sm mb-2">
               📍 {location ? calculateDistance(location.lat, location.lng, 40.7128, -74.0060).toFixed(1) : profile.distance} km away
             </div>
 
+            <p className={`text-white/90 mb-3 text-sm ${showMore ? '' : 'line-clamp-2'}`}>{profile.bio}</p>
+
             {/* Interests */}
-            <div className="flex flex-wrap gap-2">
-              {profile.interests.slice(0, 4).map((interest, index) => (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {(showMore ? profile.interests : profile.interests.slice(0, 3)).map((interest, index) => (
                 <span
                   key={index}
-                  className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-medium"
+                  className="px-3 py-1 bg-white/20 backdrop-blur-sm text-white rounded-full text-xs font-medium"
                 >
                   {interest}
                 </span>
               ))}
-              {profile.interests.length > 4 && (
-                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                  +{profile.interests.length - 4} more
+              {!showMore && profile.interests.length > 3 && (
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-white rounded-full text-xs font-medium">
+                  +{profile.interests.length - 3}
                 </span>
               )}
             </div>
+
+            {/* Extended Info - Show when expanded */}
+            {showMore && (
+              <div className="space-y-2 text-sm border-t border-white/20 pt-3">
+                {(profile as any).height && (
+                  <div className="flex items-center">
+                    <span className="text-white/70 w-24">Height:</span>
+                    <span>{(profile as any).height} cm</span>
+                  </div>
+                )}
+                {(profile as any).education && (
+                  <div className="flex items-center">
+                    <span className="text-white/70 w-24">Education:</span>
+                    <span>{(profile as any).education}</span>
+                  </div>
+                )}
+                {(profile as any).occupation && (
+                  <div className="flex items-center">
+                    <span className="text-white/70 w-24">Work:</span>
+                    <span>{(profile as any).occupation}</span>
+                  </div>
+                )}
+                {(profile as any).religion && (
+                  <div className="flex items-center">
+                    <span className="text-white/70 w-24">Religion:</span>
+                    <span>{(profile as any).religion}</span>
+                  </div>
+                )}
+                {(profile as any).smoking && (
+                  <div className="flex items-center">
+                    <span className="text-white/70 w-24">Smoking:</span>
+                    <span>{(profile as any).smoking}</span>
+                  </div>
+                )}
+                {(profile as any).drinking && (
+                  <div className="flex items-center">
+                    <span className="text-white/70 w-24">Drinking:</span>
+                    <span>{(profile as any).drinking}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-
-          {/* Action Buttons */}
-          {isTop && (
-            <div className="flex justify-center space-x-4 mt-4">
-              <Button
-                onClick={handlePass}
-                className="w-14 h-14 rounded-full bg-red-100 hover:bg-red-200 border-2 border-red-300"
-                size="icon"
-              >
-                <X className="w-6 h-6 text-red-600" />
-              </Button>
-
-              <Button
-                onClick={handleSuperLike}
-                className="w-14 h-14 rounded-full bg-blue-100 hover:bg-blue-200 border-2 border-blue-300"
-                size="icon"
-              >
-                <Star className="w-6 h-6 text-blue-600" />
-              </Button>
-
-              <Button
-                onClick={handleLike}
-                className="w-14 h-14 rounded-full bg-green-100 hover:bg-green-200 border-2 border-green-300"
-                size="icon"
-              >
-                <Heart className="w-6 h-6 text-green-600" />
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* Swipe indicators */}
