@@ -69,6 +69,7 @@ export default function MessagesPage() {
   const [showAdminNotifications, setShowAdminNotifications] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const adminMessagesEndRef = useRef<HTMLDivElement>(null);
   const adminMessagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -78,8 +79,59 @@ export default function MessagesPage() {
       loadMatches();
       loadAdminMessages();
       loadBlockedUsers();
+      syncOnlineStatus();
     }
   }, [user?.id]);
+
+  // Real-time online status sync
+  const syncOnlineStatus = () => {
+    if (!user?.id) return;
+
+    // Update own status to online
+    const updateStatus = async () => {
+      await supabase
+        .from("user_profiles")
+        .update({ last_active: new Date().toISOString() })
+        .eq("id", user.id);
+    };
+
+    updateStatus();
+    const statusInterval = setInterval(updateStatus, 30000); // Update every 30 seconds
+
+    // Subscribe to other users' status changes
+    const subscription = supabase
+      .channel("online-users")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "user_profiles",
+          filter: `id=neq.${user.id}`,
+        },
+        (payload) => {
+          const userId = payload.new.id;
+          const lastActive = new Date(payload.new.last_active).getTime();
+          const isOnline = lastActive > Date.now() - 5 * 60 * 1000;
+
+          setOnlineUsers((prev) => {
+            const newSet = new Set(prev);
+            if (isOnline) {
+              newSet.add(userId);
+            } else {
+              newSet.delete(userId);
+            }
+            return newSet;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(statusInterval);
+      subscription.unsubscribe();
+    };
+  };
 
   const loadBlockedUsers = async () => {
     if (!user?.id) return;
@@ -332,18 +384,29 @@ export default function MessagesPage() {
       const encrypted = await encryptMessage(messageContent);
 
       // Send message with optional image URL
-      const { error } = await supabase.from("messages").insert({
+      const { data, error } = await supabase.from("messages").insert({
         match_id: selectedMatch.id,
         sender_id: user.id,
         content: encrypted,
         image_url: imageUrl,
-      });
+      }).select();
 
       if (error) throw error;
+
+      // Add message to UI immediately
+      if (data && data[0]) {
+        setMessages((prev) => [...prev, data[0] as Message]);
+      }
 
       setNewMessage("");
       setSelectedImage(null);
       setImagePreview(null);
+
+      // Scroll to bottom after sending
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+
       toast.success("Message sent");
     } catch (error: any) {
       console.error("Error sending message:", error);
@@ -598,9 +661,9 @@ export default function MessagesPage() {
 
               {/* User Matches */}
               {matches.map((match) => {
-                const isOnline = match.profile?.last_active
-                  ? new Date(match.profile.last_active).getTime() > Date.now() - 5 * 60 * 1000
-                  : false;
+                const otherUserId = match.user_id_1 === user?.id ? match.user_id_2 : match.user_id_1;
+                const isOnline = onlineUsers.has(otherUserId) ||
+                  (match.profile?.last_active && new Date(match.profile.last_active).getTime() > Date.now() - 5 * 60 * 1000);
 
                 return (
                   <div
@@ -835,10 +898,14 @@ export default function MessagesPage() {
                           onClick={handleViewProfile}
                         />
                         <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                          selectedMatch.profile?.last_active &&
-                          new Date(selectedMatch.profile.last_active).getTime() > Date.now() - 5 * 60 * 1000
-                            ? "bg-green-500"
-                            : "bg-gray-400"
+                          (() => {
+                            const otherUserId = selectedMatch.user_id_1 === user?.id ? selectedMatch.user_id_2 : selectedMatch.user_id_1;
+                            return onlineUsers.has(otherUserId) ||
+                              (selectedMatch.profile?.last_active &&
+                               new Date(selectedMatch.profile.last_active).getTime() > Date.now() - 5 * 60 * 1000)
+                              ? "bg-green-500"
+                              : "bg-gray-400";
+                          })()
                         }`}></div>
                       </div>
                       <div>
@@ -932,6 +999,7 @@ export default function MessagesPage() {
                       </div>
                     </div>
                   ))}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Message Input */}

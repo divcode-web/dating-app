@@ -47,7 +47,7 @@ export default function HomePage() {
         .select("*", { count: "exact", head: true })
         .eq("to_user_id", user?.id);
 
-      // Get messages count
+      // Get unread messages count (only messages received, not sent)
       const { data: matches } = await supabase
         .from("matches")
         .select("id")
@@ -59,7 +59,9 @@ export default function HomePage() {
         const { count } = await supabase
           .from("messages")
           .select("*", { count: "exact", head: true })
-          .in("match_id", matchIds);
+          .in("match_id", matchIds)
+          .neq("sender_id", user?.id)
+          .eq("is_read", false);
         messagesCount = count || 0;
       }
 
@@ -199,7 +201,7 @@ export default function HomePage() {
           <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/messages")}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Messages</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">New Messages</p>
                 <p className="text-3xl font-bold text-blue-500">{stats.messages}</p>
               </div>
               <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full">
