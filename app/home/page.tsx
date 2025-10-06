@@ -31,52 +31,13 @@ export default function HomePage() {
       loadStats();
       loadRecentActivity();
 
-      // Real-time subscription for message count updates
-      const channel = supabase
-        .channel('home-messages-realtime')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages'
-          },
-          (payload) => {
-            const newMsg = payload.new as any;
-            // Only count messages from others, not from yourself
-            if (newMsg.sender_id !== user.id) {
-              setStats((prev) => ({
-                ...prev,
-                messages: prev.messages + 1
-              }));
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'messages'
-          },
-          (payload) => {
-            const updatedMsg = payload.new as any;
-            const oldMsg = payload.old as any;
-            // Decrease count when message is marked as read
-            if (updatedMsg.sender_id !== user.id &&
-                updatedMsg.is_read &&
-                !oldMsg.is_read) {
-              setStats((prev) => ({
-                ...prev,
-                messages: Math.max(0, prev.messages - 1)
-              }));
-            }
-          }
-        )
-        .subscribe();
+      // Poll for updates every 5 seconds
+      const statsInterval = setInterval(() => {
+        loadStats();
+      }, 5000);
 
       return () => {
-        channel.unsubscribe();
+        clearInterval(statsInterval);
       };
     }
   }, [user?.id]);
@@ -104,13 +65,19 @@ export default function HomePage() {
       let messagesCount = 0;
       if (matches) {
         const matchIds = matches.map((m) => m.id);
-        const { count } = await supabase
+        const { count, error: countError } = await supabase
           .from("messages")
           .select("*", { count: "exact", head: true })
           .in("match_id", matchIds)
           .neq("sender_id", user?.id)
-          .eq("is_read", false);
+          .is("read_at", null);
+
+        if (countError) {
+          console.error("Error counting unread messages:", countError);
+        }
+
         messagesCount = count || 0;
+        console.log(`Home page: Found ${messagesCount} unread messages`);
       }
 
       setStats({

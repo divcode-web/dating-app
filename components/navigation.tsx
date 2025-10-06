@@ -17,6 +17,7 @@ import {
   Users,
   Star,
   BookOpen,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "./auth-provider";
@@ -37,7 +38,7 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [newMatches, setNewMatches] = useState(0);
 
-  // Load counts with REAL-TIME updates
+  // Load counts with polling (checks every 5 seconds)
   useEffect(() => {
     if (!user?.id) return;
 
@@ -49,13 +50,13 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
         .or(`user_id_1.eq.${user.id},user_id_2.eq.${user.id}`);
 
       if (matches) {
-        const matchIds = matches.map((m) => m.id);
+        const matchIds = matches.map((m: any) => m.id);
         const { count } = await supabase
           .from("messages")
           .select("*", { count: "exact", head: true })
           .in("match_id", matchIds)
           .neq("sender_id", user.id)
-          .eq("is_read", false);
+          .is("read_at", null);
 
         setUnreadMessages(count || 0);
       }
@@ -72,46 +73,13 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
 
     loadCounts();
 
-    // Real-time subscription for messages badge
-    const messagesChannel = supabase
-      .channel('nav-messages-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const newMsg = payload.new as any;
-        if (newMsg.sender_id !== user.id) {
-          setUnreadMessages((prev) => prev + 1);
-        }
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
-        const updatedMsg = payload.new as any;
-        const oldMsg = payload.old as any;
-        if (updatedMsg.sender_id !== user.id && updatedMsg.is_read && !oldMsg.is_read) {
-          setUnreadMessages((prev) => Math.max(0, prev - 1));
-        }
-      })
-      .subscribe();
-
-    // Real-time subscription for matches badge
-    const matchesChannel = supabase
-      .channel('nav-matches-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches' }, (payload) => {
-        const newMatch = payload.new as any;
-        if (newMatch.user_id_1 === user.id || newMatch.user_id_2 === user.id) {
-          setNewMatches((prev) => prev + 1);
-        }
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' }, (payload) => {
-        const updatedMatch = payload.new as any;
-        const oldMatch = payload.old as any;
-        if ((updatedMatch.user_id_1 === user.id || updatedMatch.user_id_2 === user.id) &&
-            updatedMatch.viewed && !oldMatch.viewed) {
-          setNewMatches((prev) => Math.max(0, prev - 1));
-        }
-      })
-      .subscribe();
+    // Poll for updates every 5 seconds
+    const countsInterval = setInterval(() => {
+      loadCounts();
+    }, 5000);
 
     return () => {
-      messagesChannel.unsubscribe();
-      matchesChannel.unsubscribe();
+      clearInterval(countsInterval);
     };
   }, [user?.id]);
 
@@ -339,6 +307,24 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
                 </Button>
                 <Button
                   variant="ghost"
+                  className="w-full justify-start relative"
+                  onClick={() => {
+                    // Could open notifications here
+                    setIsMenuOpen(false);
+                  }}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Bell className="h-4 w-4" />
+                    <span>Notifications</span>
+                    {unreadMessages > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                        {unreadMessages > 99 ? '99+' : unreadMessages}
+                      </span>
+                    )}
+                  </div>
+                </Button>
+                <Button
+                  variant="ghost"
                   className="w-full justify-start"
                   asChild
                   onClick={() => setIsMenuOpen(false)}
@@ -438,3 +424,4 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
     </>
   );
 }
+

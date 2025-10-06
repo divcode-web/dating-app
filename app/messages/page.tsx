@@ -17,6 +17,7 @@ import { encryptMessage, decryptMessage } from "@/lib/encryption";
 interface MatchWithProfile extends Match {
   profile: UserProfile;
   lastMessage?: Message;
+  unreadCount?: number;
 }
 
 function DecryptedMessage({ content, className }: { content: string; className?: string }) {
@@ -70,18 +71,31 @@ export default function MessagesPage() {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const adminMessagesEndRef = useRef<HTMLDivElement>(null);
   const adminMessagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user?.id) {
-      loadMatches();
+      loadMatches(true); // Show loading on initial load
       loadAdminMessages();
       loadBlockedUsers();
       syncOnlineStatus();
+
+      // Poll for match updates (to refresh unread counts) every 5 seconds
+      const matchInterval = setInterval(() => {
+        loadMatches(false); // Don't show loading on poll
+      }, 5000);
+
+      // Poll for admin messages every 5 seconds
+      const adminInterval = setInterval(() => {
+        loadAdminMessages();
+      }, 5000);
+
+      return () => {
+        clearInterval(matchInterval);
+        clearInterval(adminInterval);
+      };
     }
   }, [user?.id]);
 
@@ -270,60 +284,22 @@ export default function MessagesPage() {
     if (selectedMatch && user?.id) {
       loadMessages(selectedMatch.id);
 
-      const otherUserId = selectedMatch.user_id_1 === user.id
-        ? selectedMatch.user_id_2
-        : selectedMatch.user_id_1;
-
-      // Subscribe to real-time message updates
-      const messagesChannel = supabase
-        .channel(`match-${selectedMatch.id}-messages`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "messages",
-            filter: `match_id=eq.${selectedMatch.id}`,
-          },
-          (payload) => {
-            setMessages((prev) => [...prev, payload.new as Message]);
-            // Auto-scroll to bottom when new message arrives
-            setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            }, 100);
-          }
-        )
-        .subscribe();
-
-      // Subscribe to typing indicator (Broadcast - 6ms latency!)
-      const typingChannel = supabase
-        .channel(`match-${selectedMatch.id}-typing`)
-        .on("broadcast", { event: "typing" }, ({ payload }) => {
-          if (payload.userId === otherUserId) {
-            setTypingUsers((prev) => new Set(prev).add(otherUserId));
-
-            // Auto-clear typing after 3 seconds
-            setTimeout(() => {
-              setTypingUsers((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(otherUserId);
-                return newSet;
-              });
-            }, 3000);
-          }
-        })
-        .subscribe();
+      // Poll for new messages every 3 seconds
+      const messageInterval = setInterval(() => {
+        loadMessages(selectedMatch.id);
+      }, 3000);
 
       return () => {
-        messagesChannel.unsubscribe();
-        typingChannel.unsubscribe();
+        clearInterval(messageInterval);
       };
     }
   }, [selectedMatch?.id, user?.id]);
 
-  const loadMatches = async () => {
+  const loadMatches = async (showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const { data: matches } = await supabase
         .from("matches")
         .select("*")
@@ -350,10 +326,19 @@ export default function MessagesPage() {
             .limit(1)
             .single();
 
+          // Get unread count
+          const { count: unreadCount } = await supabase
+            .from("messages")
+            .select("*", { count: "exact", head: true })
+            .eq("match_id", match.id)
+            .eq("sender_id", otherUserId)
+            .is("read_at", null);
+
           return {
             ...match,
             profile,
             lastMessage,
+            unreadCount: unreadCount || 0,
           };
         })
       );
@@ -362,7 +347,9 @@ export default function MessagesPage() {
     } catch (error) {
       console.error("Error loading matches:", error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -370,6 +357,25 @@ export default function MessagesPage() {
     try {
       const messages = await getMessages(matchId);
       setMessages(messages);
+
+      // Mark unread messages as read (only messages from other user)
+      if (messages && user?.id) {
+        const unreadMessages = messages.filter(m => !m.read_at && m.sender_id !== user.id);
+        console.log(`Found ${unreadMessages.length} unread messages to mark as read`);
+        if (unreadMessages.length > 0) {
+          const unreadIds = unreadMessages.map(m => m.id);
+          const { data, error } = await supabase
+            .from("messages")
+            .update({ read_at: new Date().toISOString() })
+            .in("id", unreadIds);
+
+          if (error) {
+            console.error("Error marking messages as read:", error);
+          } else {
+            console.log(`Successfully marked ${unreadMessages.length} messages as read`);
+          }
+        }
+      }
     } catch (error) {
       console.error("Error loading messages:", error);
     }
@@ -385,32 +391,6 @@ export default function MessagesPage() {
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  const handleTyping = () => {
-    if (!selectedMatch || !user?.id) return;
-
-    // Broadcast typing using fast Broadcast channel (6ms latency)
-    const channel = supabase.channel(`match-${selectedMatch.id}-typing`);
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        channel.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: { userId: user.id }
-        });
-      }
-    });
-
-    // Clear previous timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    // Unsubscribe after 1 second
-    typingTimeoutRef.current = setTimeout(() => {
-      channel.unsubscribe();
-    }, 1000);
   };
 
   const handleSendMessage = async () => {
@@ -744,8 +724,15 @@ export default function MessagesPage() {
                           isOnline ? "bg-green-500" : "bg-gray-400"
                         }`}></div>
                       </div>
-                      <div>
-                        <h3 className="font-medium">{match.profile.full_name}</h3>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium">{match.profile.full_name}</h3>
+                          {(match.unreadCount ?? 0) > 0 && (
+                            <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center flex-shrink-0">
+                              {(match.unreadCount ?? 0) > 99 ? '99+' : match.unreadCount}
+                            </span>
+                          )}
+                        </div>
                         {match.lastMessage && (
                           <DecryptedMessage
                             content={match.lastMessage.content}
@@ -1056,24 +1043,6 @@ export default function MessagesPage() {
                       </div>
                     </div>
                   ))}
-
-                  {/* Typing Indicator */}
-                  {selectedMatch && typingUsers.has(
-                    selectedMatch.user_id_1 === user?.id
-                      ? selectedMatch.user_id_2
-                      : selectedMatch.user_id_1
-                  ) && (
-                    <div className="mb-4 flex justify-start">
-                      <div className="max-w-xs px-4 py-3 rounded-2xl bg-gray-100 rounded-bl-md">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -1116,10 +1085,7 @@ export default function MessagesPage() {
                     </Button>
                     <Input
                       value={newMessage}
-                      onChange={(e) => {
-                        setNewMessage(e.target.value);
-                        handleTyping();
-                      }}
+                      onChange={(e) => setNewMessage(e.target.value)}
                       placeholder="Type a message..."
                       onKeyPress={(e) =>
                         e.key === "Enter" && !uploading && handleSendMessage()
