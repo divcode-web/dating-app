@@ -16,7 +16,11 @@ const SUGGESTED_INTERESTS = [
   "Art", "Dancing", "Sports", "Fashion", "Tech", "Nature"
 ];
 
-export function ProfileForm() {
+interface ProfileFormProps {
+  onSave?: () => void;
+}
+
+export function ProfileForm({ onSave }: ProfileFormProps = {}) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -49,12 +53,17 @@ export function ProfileForm() {
 
       try {
         setLoadingProfile(true);
+        console.log("🔄 PROFILE-FORM DEBUG: Loading profile for user:", user.id);
+
         const data = await getUserProfile(user.id);
         if (data) {
+          console.log("✅ PROFILE-FORM DEBUG: Profile loaded:", data);
           setProfile(data);
+        } else {
+          console.log("⚠️ PROFILE-FORM DEBUG: No profile found for user:", user.id);
         }
       } catch (error) {
-        console.error("Error loading profile:", error);
+        console.error("❌ PROFILE-FORM DEBUG: Error loading profile:", error);
       } finally {
         setLoadingProfile(false);
       }
@@ -126,11 +135,28 @@ export function ProfileForm() {
 
     try {
       setLoading(true);
+      console.log("💾 PROFILE-FORM DEBUG: Submitting profile update:", profile);
+
       await updateUserProfile(user.id, profile);
+
+      console.log("✅ PROFILE-FORM DEBUG: Profile updated, refreshing local state");
+
+      // Refresh local profile state to reflect any server-side changes
+      const updatedProfile = await getUserProfile(user.id);
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+      }
+
       toast.success("Profile updated successfully!");
+
+      // Call onSave callback to refresh parent component
+      if (onSave) {
+        console.log("🔄 PROFILE-FORM DEBUG: Calling onSave callback");
+        onSave();
+      }
     } catch (error) {
+      console.error("❌ PROFILE-FORM DEBUG: Failed to update profile:", error);
       toast.error("Failed to update profile");
-      console.error(error);
     } finally {
       setLoading(false);
     }

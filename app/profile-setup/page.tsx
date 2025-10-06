@@ -9,17 +9,58 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { updateUserProfile, uploadPhoto } from "@/lib/api";
-import { Upload, X, ArrowLeft, ArrowRight, Check, Flame, Camera, User, Heart, MapPin, Briefcase, GraduationCap, Music } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  updateUserProfile,
+  uploadPhoto,
+  getUserProfile,
+  addProfileUpdateListener,
+} from "@/lib/api";
+import {
+  Upload,
+  X,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Flame,
+  Camera,
+  User,
+  Heart,
+  MapPin,
+  Briefcase,
+  GraduationCap,
+  Music,
+  MessageSquare,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import toast from "react-hot-toast";
 
 const TOTAL_STEPS = 7;
 
 const SUGGESTED_INTERESTS = [
-  "Travel", "Coffee", "Fitness", "Music", "Foodie", "Movies",
-  "Hiking", "Photography", "Gaming", "Reading", "Yoga", "Cooking",
-  "Art", "Dancing", "Sports", "Fashion", "Tech", "Nature"
+  "Travel",
+  "Coffee",
+  "Fitness",
+  "Music",
+  "Foodie",
+  "Movies",
+  "Hiking",
+  "Photography",
+  "Gaming",
+  "Reading",
+  "Yoga",
+  "Cooking",
+  "Art",
+  "Dancing",
+  "Sports",
+  "Fashion",
+  "Tech",
+  "Nature",
 ];
 
 export default function ProfileSetupPage() {
@@ -45,7 +86,121 @@ export default function ProfileSetupPage() {
   });
 
   const [interestInput, setInterestInput] = useState("");
+  const [completedSections, setCompletedSections] = useState<string[]>([]);
+  const [requiredSteps, setRequiredSteps] = useState<number[]>([]);
   const profileCompletion = calculateProgress();
+
+  // Calculate which sections are already complete and which steps are needed
+  useEffect(() => {
+    if (
+      formData.full_name ||
+      formData.date_of_birth ||
+      formData.gender ||
+      formData.photos?.length > 0 ||
+      formData.bio ||
+      formData.interests?.length > 0 ||
+      formData.occupation ||
+      formData.education ||
+      formData.location_city ||
+      formData.relationship_type ||
+      formData.looking_for?.length > 0
+    ) {
+      const completed: string[] = [];
+      const steps: number[] = [];
+
+      // Check each section and determine what steps are needed
+      if (!formData.full_name || !formData.date_of_birth || !formData.gender) {
+        steps.push(1, 2); // Basic info spans steps 1-2
+      }
+
+      if (formData.photos?.length === 0) {
+        steps.push(3); // Photos
+      }
+
+      if (!formData.bio) {
+        steps.push(4); // Bio
+      }
+
+      if (formData.interests?.length === 0) {
+        steps.push(5); // Interests
+      }
+
+      if (
+        !formData.occupation ||
+        !formData.education ||
+        !formData.location_city
+      ) {
+        steps.push(6); // Lifestyle/Professional info
+      }
+
+      if (!formData.relationship_type || formData.looking_for?.length === 0) {
+        steps.push(7); // Relationship preferences
+      }
+
+      // Remove duplicates and sort
+      setRequiredSteps(Array.from(new Set(steps)).sort((a, b) => a - b));
+
+      // Track completed sections for UI feedback
+      if (formData.full_name && formData.date_of_birth && formData.gender) {
+        completed.push("basic");
+      }
+      if (formData.photos?.length > 0) {
+        completed.push("photos");
+      }
+      if (formData.bio) {
+        completed.push("bio");
+      }
+      if (formData.interests?.length > 0) {
+        completed.push("interests");
+      }
+      if (formData.occupation || formData.education || formData.location_city) {
+        completed.push("lifestyle");
+      }
+      if (formData.relationship_type || formData.looking_for?.length > 0) {
+        completed.push("preferences");
+      }
+
+      setCompletedSections(completed);
+    } else {
+      // No data yet, show all steps
+      setRequiredSteps([1, 2, 3, 4, 5, 6, 7]);
+      setCompletedSections([]);
+    }
+  }, [formData]);
+
+  // Listen for profile updates from other pages
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const handleProfileUpdate = async (updatedUserId: string) => {
+      if (updatedUserId === user.id) {
+        // Reload form data from database
+        const updatedProfile = await getUserProfile(user.id);
+        if (updatedProfile) {
+          setFormData(updatedProfile);
+
+          // Check if profile is now complete and redirect if needed
+          const isComplete =
+            updatedProfile.full_name &&
+            updatedProfile.date_of_birth &&
+            updatedProfile.gender &&
+            updatedProfile.photos?.length > 0 &&
+            (updatedProfile.bio || updatedProfile.interests?.length > 0);
+
+          if (isComplete) {
+            router.push("/home");
+            return;
+          }
+        }
+      }
+    };
+
+    const removeListener = addProfileUpdateListener(handleProfileUpdate);
+
+    return () => {
+      removeListener();
+    };
+  }, [user?.id]);
 
   function calculateProgress() {
     let score = 0;
@@ -100,16 +255,22 @@ export default function ProfileSetupPage() {
       return;
     }
 
-    if (currentStep < TOTAL_STEPS) {
-      setCurrentStep(currentStep + 1);
+    // Find next required step
+    const currentIndex = requiredSteps.indexOf(currentStep);
+    if (currentIndex < requiredSteps.length - 1) {
+      // Go to next required step
+      setCurrentStep(requiredSteps[currentIndex + 1]);
     } else {
+      // Complete the profile
       await handleComplete();
     }
   };
 
   const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+    const currentIndex = requiredSteps.indexOf(currentStep);
+    if (currentIndex > 0) {
+      // Go to previous required step
+      setCurrentStep(requiredSteps[currentIndex - 1]);
     }
   };
 
@@ -212,7 +373,11 @@ export default function ProfileSetupPage() {
   };
 
   const addInterest = (interest: string) => {
-    if (interest.trim() && formData.interests.length < 10 && !formData.interests.includes(interest.trim())) {
+    if (
+      interest.trim() &&
+      formData.interests.length < 10 &&
+      !formData.interests.includes(interest.trim())
+    ) {
       setFormData((prev) => ({
         ...prev,
         interests: [...prev.interests, interest.trim()],
@@ -232,7 +397,7 @@ export default function ProfileSetupPage() {
     setFormData((prev) => ({
       ...prev,
       looking_for: prev.looking_for.includes(value)
-        ? prev.looking_for.filter(v => v !== value)
+        ? prev.looking_for.filter((v) => v !== value)
         : [...prev.looking_for, value],
     }));
   };
@@ -241,10 +406,29 @@ export default function ProfileSetupPage() {
     try {
       setLoading(true);
       await updateUserProfile(user?.id!, formData);
-      toast.success("Profile created successfully!");
-      router.push("/home");
+
+      // Check if profile is actually complete before redirecting to home
+      const updatedProfile = await getUserProfile(user?.id!);
+      if (updatedProfile) {
+        const isComplete =
+          updatedProfile.full_name &&
+          updatedProfile.date_of_birth &&
+          updatedProfile.gender &&
+          updatedProfile.photos?.length > 0 &&
+          (updatedProfile.bio || updatedProfile.interests?.length > 0);
+
+        if (isComplete) {
+          toast.success("Profile completed successfully!");
+          router.push("/home");
+        } else {
+          toast.success("Profile updated! Please complete all sections.");
+        }
+      } else {
+        toast.success("Profile updated!");
+        router.push("/home"); // Fallback to home
+      }
     } catch (error) {
-      toast.error("Failed to create profile");
+      toast.error("Failed to update profile");
     } finally {
       setLoading(false);
     }
@@ -258,7 +442,9 @@ export default function ProfileSetupPage() {
             <div className="text-center mb-8">
               <Flame className="w-16 h-16 text-pink-500 mx-auto mb-4" />
               <h2 className="text-3xl font-bold mb-2">Let's Get Started!</h2>
-              <p className="text-gray-600">First impressions matter — let's make yours count</p>
+              <p className="text-gray-600">
+                First impressions matter — let's make yours count
+              </p>
             </div>
             <div>
               <Label htmlFor="name">Full Name</Label>
@@ -266,7 +452,10 @@ export default function ProfileSetupPage() {
                 id="name"
                 value={formData.full_name}
                 onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, full_name: e.target.value }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    full_name: e.target.value,
+                  }))
                 }
                 placeholder="Enter your full name"
                 className="text-lg p-6"
@@ -282,7 +471,9 @@ export default function ProfileSetupPage() {
             <div className="text-center mb-8">
               <User className="w-16 h-16 text-purple-500 mx-auto mb-4" />
               <h2 className="text-3xl font-bold mb-2">About You</h2>
-              <p className="text-gray-600">Help us show you to the right people</p>
+              <p className="text-gray-600">
+                Help us show you to the right people
+              </p>
             </div>
             <div>
               <Label htmlFor="dob">Date of Birth</Label>
@@ -291,7 +482,10 @@ export default function ProfileSetupPage() {
                 type="date"
                 value={formData.date_of_birth}
                 onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, date_of_birth: e.target.value }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    date_of_birth: e.target.value,
+                  }))
                 }
                 className="text-lg p-6"
               />
@@ -322,7 +516,12 @@ export default function ProfileSetupPage() {
                 type="number"
                 value={formData.height || ""}
                 onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, height: e.target.value ? parseInt(e.target.value) : undefined }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    height: e.target.value
+                      ? parseInt(e.target.value)
+                      : undefined,
+                  }))
                 }
                 placeholder="175"
                 className="text-lg p-6"
@@ -337,7 +536,9 @@ export default function ProfileSetupPage() {
             <div className="text-center mb-8">
               <Camera className="w-16 h-16 text-pink-500 mx-auto mb-4" />
               <h2 className="text-3xl font-bold mb-2">Add Your Photos</h2>
-              <p className="text-gray-600">Photos are the most important part! Add up to 4 quality pics</p>
+              <p className="text-gray-600">
+                Photos are the most important part! Add up to 4 quality pics
+              </p>
               <div className="mt-4 p-4 bg-pink-50 rounded-lg text-left text-sm">
                 <p className="font-semibold text-pink-700 mb-2">📸 Pro Tips:</p>
                 <ul className="space-y-1 text-gray-700">
@@ -390,7 +591,9 @@ export default function ProfileSetupPage() {
                 </label>
               )}
             </div>
-            <p className="text-center text-sm text-gray-500">{formData.photos.length}/4 photos</p>
+            <p className="text-center text-sm text-gray-500">
+              {formData.photos.length}/4 photos
+            </p>
           </div>
         );
 
@@ -400,9 +603,13 @@ export default function ProfileSetupPage() {
             <div className="text-center mb-8">
               <Heart className="w-16 h-16 text-pink-500 mx-auto mb-4" />
               <h2 className="text-3xl font-bold mb-2">Your Bio</h2>
-              <p className="text-gray-600">Keep it short, fun, and authentic (3-4 lines max)</p>
+              <p className="text-gray-600">
+                Keep it short, fun, and authentic (3-4 lines max)
+              </p>
               <div className="mt-4 p-4 bg-purple-50 rounded-lg text-left text-sm">
-                <p className="font-semibold text-purple-700 mb-2">✍️ Good Bio Structure:</p>
+                <p className="font-semibold text-purple-700 mb-2">
+                  ✍️ Good Bio Structure:
+                </p>
                 <ul className="space-y-1 text-gray-700">
                   <li>1. Hook about your personality/interests</li>
                   <li>2. What you like doing</li>
@@ -423,7 +630,9 @@ export default function ProfileSetupPage() {
                 placeholder="🌍 Always planning my next trip | 🐶 Dog dad | 🍣 Sushi > Pizza&#10;Looking for someone who can match my sarcasm and Spotify energy."
                 maxLength={300}
               />
-              <p className="text-right text-sm text-gray-500 mt-1">{formData.bio.length}/300</p>
+              <p className="text-right text-sm text-gray-500 mt-1">
+                {formData.bio.length}/300
+              </p>
             </div>
           </div>
         );
@@ -434,7 +643,9 @@ export default function ProfileSetupPage() {
             <div className="text-center mb-8">
               <Music className="w-16 h-16 text-purple-500 mx-auto mb-4" />
               <h2 className="text-3xl font-bold mb-2">Your Passions</h2>
-              <p className="text-gray-600">Pick 5-10 interests that describe you</p>
+              <p className="text-gray-600">
+                Pick 5-10 interests that describe you
+              </p>
             </div>
             <div className="space-y-4">
               <div>
@@ -444,7 +655,10 @@ export default function ProfileSetupPage() {
                     <button
                       key={interest}
                       onClick={() => addInterest(interest)}
-                      disabled={formData.interests.includes(interest) || formData.interests.length >= 10}
+                      disabled={
+                        formData.interests.includes(interest) ||
+                        formData.interests.length >= 10
+                      }
                       className={`px-4 py-2 rounded-full text-sm transition ${
                         formData.interests.includes(interest)
                           ? "bg-pink-500 text-white"
@@ -463,11 +677,17 @@ export default function ProfileSetupPage() {
                     id="custom-interest"
                     value={interestInput}
                     onChange={(e) => setInterestInput(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addInterest(interestInput))}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" &&
+                      (e.preventDefault(), addInterest(interestInput))
+                    }
                     placeholder="Type and press Enter..."
                     disabled={formData.interests.length >= 10}
                   />
-                  <Button onClick={() => addInterest(interestInput)} disabled={formData.interests.length >= 10}>
+                  <Button
+                    onClick={() => addInterest(interestInput)}
+                    disabled={formData.interests.length >= 10}
+                  >
                     Add
                   </Button>
                 </div>
@@ -498,7 +718,9 @@ export default function ProfileSetupPage() {
             <div className="text-center mb-8">
               <Briefcase className="w-16 h-16 text-blue-500 mx-auto mb-4" />
               <h2 className="text-3xl font-bold mb-2">Lifestyle</h2>
-              <p className="text-gray-600">Add credibility and conversation starters</p>
+              <p className="text-gray-600">
+                Add credibility and conversation starters
+              </p>
             </div>
             <div>
               <Label htmlFor="occupation">Job Title (Optional)</Label>
@@ -506,7 +728,10 @@ export default function ProfileSetupPage() {
                 id="occupation"
                 value={formData.occupation}
                 onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, occupation: e.target.value }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    occupation: e.target.value,
+                  }))
                 }
                 placeholder="e.g., Marketing at Spotify, Engineer, Creator"
                 className="text-lg p-6"
@@ -518,7 +743,10 @@ export default function ProfileSetupPage() {
                 id="education"
                 value={formData.education}
                 onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, education: e.target.value }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    education: e.target.value,
+                  }))
                 }
                 placeholder="e.g., UCLA, Computer Science"
                 className="text-lg p-6"
@@ -532,7 +760,10 @@ export default function ProfileSetupPage() {
                   id="location"
                   value={formData.location_city}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, location_city: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      location_city: e.target.value,
+                    }))
                   }
                   placeholder="City, Country"
                   className="text-lg p-6 pl-12"
@@ -547,8 +778,12 @@ export default function ProfileSetupPage() {
           <div className="space-y-6">
             <div className="text-center mb-8">
               <Heart className="w-16 h-16 text-pink-500 mx-auto mb-4" />
-              <h2 className="text-3xl font-bold mb-2">What Are You Looking For?</h2>
-              <p className="text-gray-600">Be honest — it helps match expectations</p>
+              <h2 className="text-3xl font-bold mb-2">
+                What Are You Looking For?
+              </h2>
+              <p className="text-gray-600">
+                Be honest — it helps match expectations
+              </p>
             </div>
             <div>
               <Label>Relationship Type</Label>
@@ -565,37 +800,43 @@ export default function ProfileSetupPage() {
                   <SelectItem value="long-term">Long-term partner</SelectItem>
                   <SelectItem value="casual">Short-term fun</SelectItem>
                   <SelectItem value="friendship">Friends</SelectItem>
-                  <SelectItem value="figuring-out">Still figuring it out</SelectItem>
+                  <SelectItem value="figuring-out">
+                    Still figuring it out
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label>I'm interested in (select all that apply)</Label>
               <div className="grid grid-cols-2 gap-3 mt-2">
-                {["Friendship", "Dating", "Relationship", "Networking"].map((option) => (
-                  <button
-                    key={option}
-                    onClick={() => toggleLookingFor(option.toLowerCase())}
-                    className={`p-4 rounded-xl border-2 transition ${
-                      formData.looking_for.includes(option.toLowerCase())
-                        ? "border-pink-500 bg-pink-50"
-                        : "border-gray-200 hover:border-pink-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                {["Friendship", "Dating", "Relationship", "Networking"].map(
+                  (option) => (
+                    <button
+                      key={option}
+                      onClick={() => toggleLookingFor(option.toLowerCase())}
+                      className={`p-4 rounded-xl border-2 transition ${
                         formData.looking_for.includes(option.toLowerCase())
-                          ? "border-pink-500 bg-pink-500"
-                          : "border-gray-300"
-                      }`}>
-                        {formData.looking_for.includes(option.toLowerCase()) && (
-                          <Check className="w-3 h-3 text-white" />
-                        )}
+                          ? "border-pink-500 bg-pink-50"
+                          : "border-gray-200 hover:border-pink-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            formData.looking_for.includes(option.toLowerCase())
+                              ? "border-pink-500 bg-pink-500"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {formData.looking_for.includes(
+                            option.toLowerCase()
+                          ) && <Check className="w-3 h-3 text-white" />}
+                        </div>
+                        <span className="font-medium">{option}</span>
                       </div>
-                      <span className="font-medium">{option}</span>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  )
+                )}
               </div>
             </div>
           </div>
@@ -613,21 +854,37 @@ export default function ProfileSetupPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-gray-600">Profile Completion</h3>
-              <p className="text-2xl font-bold text-pink-600">{profileCompletion}%</p>
+              <h3 className="text-sm font-semibold text-gray-600">
+                Profile Completion
+              </h3>
+              <p className="text-2xl font-bold text-pink-600">
+                {profileCompletion}%
+              </p>
+              {completedSections.length > 0 && (
+                <p className="text-xs text-green-600 mt-1">
+                  {completedSections.length} section
+                  {completedSections.length > 1 ? "s" : ""} complete
+                </p>
+              )}
             </div>
             <Flame className="w-8 h-8 text-pink-500" />
           </div>
           <Progress value={profileCompletion} className="mb-2 h-3" />
           <p className="text-sm text-gray-600 text-center">
-            Step {currentStep} of {TOTAL_STEPS}
+            Step {requiredSteps.indexOf(currentStep) + 1} of{" "}
+            {requiredSteps.length}
+            {completedSections.length > 0 && (
+              <span className="ml-2 text-green-600">
+                ({completedSections.length} sections complete)
+              </span>
+            )}
           </p>
         </div>
 
         {renderStep()}
 
         <div className="flex gap-4 mt-8">
-          {currentStep > 1 && (
+          {requiredSteps.indexOf(currentStep) > 0 && (
             <Button onClick={handleBack} variant="outline" className="flex-1">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
@@ -645,8 +902,13 @@ export default function ProfileSetupPage() {
               </div>
             ) : (
               <>
-                {currentStep === TOTAL_STEPS ? "Complete Profile" : "Next"}
-                {currentStep < TOTAL_STEPS && <ArrowRight className="w-4 h-4 ml-2" />}
+                {requiredSteps.indexOf(currentStep) === requiredSteps.length - 1
+                  ? "Complete Profile"
+                  : "Next"}
+                {requiredSteps.indexOf(currentStep) <
+                  requiredSteps.length - 1 && (
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                )}
               </>
             )}
           </Button>

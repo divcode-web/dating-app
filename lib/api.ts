@@ -1,32 +1,74 @@
 import { supabase } from './supabase';
 import { UserProfile, UserSettings, Like, Match, Message } from './types';
 
+// Profile update event system for cross-page synchronization
+const profileUpdateListeners = new Set<(userId: string) => void>();
+
+export function addProfileUpdateListener(listener: (userId: string) => void) {
+  profileUpdateListeners.add(listener);
+  return () => profileUpdateListeners.delete(listener);
+}
+
+export function notifyProfileUpdate(userId: string) {
+  console.log("📡 API DEBUG: Notifying profile update for user:", userId);
+  profileUpdateListeners.forEach(listener => listener(userId));
+
+  // Also store in localStorage for cross-tab synchronization
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(`profile_updated_${userId}`, Date.now().toString());
+    window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { userId } }));
+  }
+}
+
 // Profile Management
 export async function updateUserProfile(userId: string, profile: Partial<UserProfile>) {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .update(profile)
-    .eq('id', userId);
+   console.log("💾 API DEBUG: Updating user profile for:", userId);
+   console.log("💾 API DEBUG: Profile data being updated:", profile);
 
-  if (error) throw error;
-  return data;
-}
+   const { data, error } = await supabase
+     .from('user_profiles')
+     .upsert({ id: userId, ...profile }, { onConflict: 'id' })
+     .select()
+     .single();
+
+   if (error) {
+     console.error("❌ API DEBUG: Error updating profile:", error);
+     throw error;
+   }
+
+   console.log("✅ API DEBUG: Profile updated successfully:", data);
+
+   // Notify other pages/components about the update
+   notifyProfileUpdate(userId);
+
+   return data;
+ }
 
 export async function getUserProfile(userId: string) {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
+   console.log("🔍 API DEBUG: Getting user profile for:", userId);
 
-  // If no profile exists, return null instead of throwing
-  if (error && error.code === 'PGRST116') {
-    return null;
-  }
+   const { data, error } = await supabase
+     .from('user_profiles')
+     .select('*')
+     .eq('id', userId)
+     .single();
 
-  if (error) throw error;
-  return data;
-}
+   console.log("🔍 API DEBUG: Profile query result:", { data, error });
+
+   // If no profile exists, return null instead of throwing
+   if (error && error.code === 'PGRST116') {
+     console.log("⚠️ API DEBUG: No profile found for user:", userId);
+     return null;
+   }
+
+   if (error) {
+     console.error("❌ API DEBUG: Error fetching profile:", error);
+     throw error;
+   }
+
+   console.log("✅ API DEBUG: Profile loaded successfully");
+   return data;
+ }
 
 // Match System
 export async function createLike(fromUserId: string, toUserId: string, isSuperLike: boolean = false) {

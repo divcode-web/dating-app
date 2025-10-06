@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { updateUserProfile, uploadPhoto, getUserProfile } from "@/lib/api";
+import { updateUserProfile, uploadPhoto, getUserProfile, addProfileUpdateListener } from "@/lib/api";
 import { Upload, X, ArrowLeft, ArrowRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import toast from "react-hot-toast";
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 6;
 
 export default function OnboardingPage() {
   const { user } = useAuth();
@@ -22,7 +22,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // Form data
+  // Form data - synced with profile edit
   const [formData, setFormData] = useState({
     full_name: "",
     date_of_birth: "",
@@ -30,6 +30,18 @@ export default function OnboardingPage() {
     bio: "",
     interests: [] as string[],
     photos: [] as string[],
+    ethnicity: "",
+    height: undefined as number | undefined,
+    education: "",
+    occupation: "",
+    smoking: "",
+    drinking: "",
+    religion: "",
+    relationship_type: "",
+    looking_for: [] as string[],
+    languages: [] as string[],
+    children: "",
+    location_city: "",
   });
 
   const [interestInput, setInterestInput] = useState("");
@@ -41,6 +53,8 @@ export default function OnboardingPage() {
 
       try {
         const profile = await getUserProfile(user.id);
+        console.log("🔄 ONBOARDING DEBUG: Loaded profile data:", profile);
+
         if (profile) {
           setFormData({
             full_name: profile.full_name || "",
@@ -49,20 +63,66 @@ export default function OnboardingPage() {
             bio: profile.bio || "",
             interests: profile.interests || [],
             photos: profile.photos || [],
+            ethnicity: profile.ethnicity || "",
+            height: profile.height || undefined,
+            education: profile.education || "",
+            occupation: profile.occupation || "",
+            smoking: profile.smoking || "",
+            drinking: profile.drinking || "",
+            religion: profile.religion || "",
+            relationship_type: profile.relationship_type || "",
+            looking_for: profile.looking_for || [],
+            languages: profile.languages || [],
+            children: profile.children || "",
+            location_city: profile.location_city || "",
           });
 
           // Calculate which step to start on based on what's missing
           const startStep = calculateStartStep(profile);
+          console.log("🔄 ONBOARDING DEBUG: Starting at step:", startStep);
+
+          // Check if user has completed onboarding before (has extended profile data)
+          const hasExtendedProfile = profile.ethnicity || profile.height || profile.education ||
+                                   profile.occupation || profile.location_city || profile.smoking ||
+                                   profile.drinking || profile.religion || profile.children ||
+                                   profile.relationship_type || (profile.looking_for && profile.looking_for.length > 0);
+
+          // If profile has extended data, redirect to home (completed both onboarding and profile-setup)
+          if (hasExtendedProfile) {
+            console.log("✅ ONBOARDING DEBUG: Profile has extended data, redirecting to home");
+            router.push("/home");
+            return;
+          }
+
+          // If only basic data exists, continue with onboarding
+          console.log("🔄 ONBOARDING DEBUG: Profile has basic data only, continuing with onboarding");
+
           setCurrentStep(startStep);
+        } else {
+          console.log("⚠️ ONBOARDING DEBUG: No profile found for user:", user.id);
         }
       } catch (error) {
-        console.error("Failed to load profile:", error);
+        console.error("❌ ONBOARDING DEBUG: Failed to load profile:", error);
       } finally {
         setInitialLoading(false);
       }
     };
 
     loadExistingProfile();
+
+    // Listen for profile updates from other pages
+    const handleProfileUpdate = (updatedUserId: string) => {
+      if (updatedUserId === user?.id) {
+        console.log("🔄 ONBOARDING DEBUG: Profile updated from another page, reloading...");
+        loadExistingProfile();
+      }
+    };
+
+    const removeListener = addProfileUpdateListener(handleProfileUpdate);
+
+    return () => {
+      removeListener();
+    };
   }, [user?.id]);
 
   // Determine which step to start on based on missing data
@@ -70,7 +130,17 @@ export default function OnboardingPage() {
     if (!profile.full_name) return 1;
     if (!profile.date_of_birth || !profile.gender) return 2;
     if (!profile.photos || profile.photos.length === 0) return 3;
-    return 4; // Bio and interests (optional fields)
+
+    // Check if user already completed extended profile fields
+    const hasExtendedInfo = profile.ethnicity || profile.height || profile.education ||
+                           profile.occupation || profile.location_city;
+    if (!hasExtendedInfo) return 4;
+
+    const hasLifestyleInfo = profile.smoking || profile.drinking || profile.religion ||
+                            profile.children || profile.relationship_type;
+    if (!hasLifestyleInfo) return 5;
+
+    return 6; // Bio and interests (final step)
   };
 
   const progress = (currentStep / TOTAL_STEPS) * 100;
@@ -223,10 +293,17 @@ export default function OnboardingPage() {
   const handleComplete = async () => {
     try {
       setLoading(true);
+      console.log("💾 ONBOARDING DEBUG: Completing onboarding with data:", formData);
+
       await updateUserProfile(user?.id!, formData);
-      toast.success("Profile created successfully!");
-      router.push("/home");
+
+      console.log("✅ ONBOARDING DEBUG: Basic profile saved, redirecting to profile-setup");
+      toast.success("Basic profile created! Let's add more details...");
+
+      // Redirect to profile-setup instead of home to complete the full profile
+      router.push("/profile-setup");
     } catch (error) {
+      console.error("❌ ONBOARDING DEBUG: Failed to save profile:", error);
       toast.error("Failed to create profile");
     } finally {
       setLoading(false);
@@ -346,6 +423,143 @@ export default function OnboardingPage() {
         );
 
       case 4:
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold mb-2">More about you</h2>
+              <p className="text-gray-600">Help others know you better</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="ethnicity">Ethnicity (Optional)</Label>
+                <Input
+                  id="ethnicity"
+                  value={formData.ethnicity}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, ethnicity: e.target.value }))}
+                  placeholder="e.g., Asian, Hispanic..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="height">Height in cm (Optional)</Label>
+                <Input
+                  id="height"
+                  type="number"
+                  value={formData.height || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, height: e.target.value ? parseInt(e.target.value) : undefined }))}
+                  placeholder="e.g., 170"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="education">Education (Optional)</Label>
+                <Input
+                  id="education"
+                  value={formData.education}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, education: e.target.value }))}
+                  placeholder="e.g., Bachelor's Degree"
+                />
+              </div>
+              <div>
+                <Label htmlFor="occupation">Occupation (Optional)</Label>
+                <Input
+                  id="occupation"
+                  value={formData.occupation}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, occupation: e.target.value }))}
+                  placeholder="e.g., Software Engineer"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="location_city">City (Optional)</Label>
+              <Input
+                id="location_city"
+                value={formData.location_city}
+                onChange={(e) => setFormData((prev) => ({ ...prev, location_city: e.target.value }))}
+                placeholder="e.g., New York, NY"
+              />
+            </div>
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold mb-2">Lifestyle</h2>
+              <p className="text-gray-600">Share your preferences</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="smoking">Smoking (Optional)</Label>
+                <Select value={formData.smoking} onValueChange={(value) => setFormData((prev) => ({ ...prev, smoking: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="never">Never</SelectItem>
+                    <SelectItem value="occasionally">Occasionally</SelectItem>
+                    <SelectItem value="regularly">Regularly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="drinking">Drinking (Optional)</Label>
+                <Select value={formData.drinking} onValueChange={(value) => setFormData((prev) => ({ ...prev, drinking: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="never">Never</SelectItem>
+                    <SelectItem value="occasionally">Occasionally</SelectItem>
+                    <SelectItem value="regularly">Regularly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="religion">Religion (Optional)</Label>
+                <Input
+                  id="religion"
+                  value={formData.religion}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, religion: e.target.value }))}
+                  placeholder="e.g., Christian, Muslim..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="children">Children (Optional)</Label>
+                <Select value={formData.children} onValueChange={(value) => setFormData((prev) => ({ ...prev, children: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="have_children">Have children</SelectItem>
+                    <SelectItem value="want_children">Want children</SelectItem>
+                    <SelectItem value="dont_want">Don't want</SelectItem>
+                    <SelectItem value="open">Open to it</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="relationship_type">Looking for (Optional)</Label>
+              <Select value={formData.relationship_type} onValueChange={(value) => setFormData((prev) => ({ ...prev, relationship_type: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="casual">Casual dating</SelectItem>
+                  <SelectItem value="serious">Serious relationship</SelectItem>
+                  <SelectItem value="friendship">Friendship</SelectItem>
+                  <SelectItem value="not_sure">Not sure yet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        );
+
+      case 6:
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">

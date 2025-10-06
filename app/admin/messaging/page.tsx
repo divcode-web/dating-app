@@ -8,8 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Send, Users as UsersIcon, User, MessageSquare } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ArrowLeft,
+  Send,
+  Users as UsersIcon,
+  User,
+  MessageSquare,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 interface UserProfile {
@@ -18,11 +30,22 @@ interface UserProfile {
   email?: string;
 }
 
+interface UserReply {
+  id: string;
+  recipient_id: string;
+  content: string;
+  created_at: string;
+  user_profile: {
+    full_name: string;
+  };
+}
+
 export default function AdminMessagingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [adminId, setAdminId] = useState<string>("");
+  const [userReplies, setUserReplies] = useState<UserReply[]>([]);
 
   const [formData, setFormData] = useState({
     recipient: "all",
@@ -35,10 +58,13 @@ export default function AdminMessagingPage() {
   useEffect(() => {
     checkAdmin();
     fetchUsers();
+    fetchUserReplies();
   }, []);
 
   const checkAdmin = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       router.push("/admin/login");
       return;
@@ -68,6 +94,24 @@ export default function AdminMessagingPage() {
     setUsers(data || []);
   };
 
+  const fetchUserReplies = async () => {
+    // Fetch user replies (where admin_id is null)
+    const { data } = await supabase
+      .from("admin_messages")
+      .select(`
+        id,
+        recipient_id,
+        content,
+        created_at,
+        user_profile:user_profiles!recipient_id(full_name)
+      `)
+      .is("admin_id", null)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    setUserReplies(data as any || []);
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -86,6 +130,13 @@ export default function AdminMessagingPage() {
 
       if (formData.recipient === "all") {
         // Use the bulk message function
+        console.log("Sending bulk message:", {
+          admin_id_param: adminId,
+          subject_param: formData.subject,
+          content_param: formData.content,
+          message_type_param: formData.messageType,
+        });
+
         const { data, error } = await supabase.rpc("send_bulk_message", {
           admin_id_param: adminId,
           subject_param: formData.subject,
@@ -93,8 +144,12 @@ export default function AdminMessagingPage() {
           message_type_param: formData.messageType,
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Bulk message error:", error);
+          throw error;
+        }
 
+        console.log("Bulk message result:", { data, error });
         toast.success(`Message sent to ${data || 0} users!`);
       } else {
         // Send to specific user
@@ -111,7 +166,17 @@ export default function AdminMessagingPage() {
           content: formData.content,
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error inserting admin message:", error);
+          throw error;
+        }
+
+        console.log("Admin message inserted successfully:", {
+          admin_id: adminId,
+          recipient_id: formData.recipientId,
+          message_type: formData.messageType,
+          subject: formData.subject,
+        });
 
         toast.success("Message sent!");
       }
@@ -136,7 +201,10 @@ export default function AdminMessagingPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="container mx-auto max-w-3xl">
         <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" onClick={() => router.push("/admin/dashboard")}>
+          <Button
+            variant="ghost"
+            onClick={() => router.push("/admin/dashboard")}
+          >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
@@ -156,7 +224,11 @@ export default function AdminMessagingPage() {
               <Select
                 value={formData.recipient}
                 onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, recipient: value, recipientId: "" }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    recipient: value,
+                    recipientId: "",
+                  }))
                 }
               >
                 <SelectTrigger id="recipient" className="w-full">
@@ -185,7 +257,9 @@ export default function AdminMessagingPage() {
                 <Label htmlFor="user">Select User</Label>
                 <Select
                   value={formData.recipientId}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, recipientId: value }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, recipientId: value }))
+                  }
                 >
                   <SelectTrigger id="user">
                     <SelectValue placeholder="Choose a user..." />
@@ -206,7 +280,9 @@ export default function AdminMessagingPage() {
               <Label htmlFor="messageType">Message Type</Label>
               <Select
                 value={formData.messageType}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, messageType: value }))}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, messageType: value }))
+                }
               >
                 <SelectTrigger id="messageType">
                   <SelectValue />
@@ -226,7 +302,9 @@ export default function AdminMessagingPage() {
               <Input
                 id="subject"
                 value={formData.subject}
-                onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, subject: e.target.value }))
+                }
                 placeholder="Enter message subject..."
                 required
               />
@@ -238,7 +316,9 @@ export default function AdminMessagingPage() {
               <Textarea
                 id="content"
                 value={formData.content}
-                onChange={(e) => setFormData((prev) => ({ ...prev, content: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, content: e.target.value }))
+                }
                 placeholder="Write your message here..."
                 rows={10}
                 required
@@ -268,6 +348,53 @@ export default function AdminMessagingPage() {
             </div>
           </form>
         </Card>
+
+        {/* User Replies */}
+        {userReplies.length > 0 && (
+          <Card className="p-6 mt-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Recent User Replies
+            </h3>
+            <div className="space-y-3">
+              {userReplies.map((reply) => (
+                <div
+                  key={reply.id}
+                  className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="font-medium text-sm">
+                      {reply.user_profile?.full_name || "Unknown User"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(reply.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {reply.content}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        recipient: "specific",
+                        recipientId: reply.recipient_id,
+                        subject: "Re: Your Message",
+                        content: "",
+                      }));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    Reply
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Quick Templates */}
         <Card className="p-6 mt-6">

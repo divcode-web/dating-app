@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { addProfileUpdateListener } from "@/lib/api";
 import { ProfileForm } from "@/components/profile-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -46,7 +47,24 @@ export default function ProfilePage() {
     };
 
     checkUser();
-  }, [router, viewUserId]);
+
+    // Listen for profile updates from other pages
+    const handleProfileUpdate = async (updatedUserId: string) => {
+      // Reload if it's the profile we're currently viewing
+      const currentProfileId = viewUserId || user?.id;
+      if (updatedUserId === currentProfileId) {
+        if (currentProfileId) {
+          await loadProfile(currentProfileId);
+        }
+      }
+    };
+
+    const removeListener = addProfileUpdateListener(handleProfileUpdate);
+
+    return () => {
+      removeListener();
+    };
+  }, [router, viewUserId, user?.id]);
 
   const loadProfile = async (userId: string) => {
     try {
@@ -118,18 +136,8 @@ export default function ProfilePage() {
 
               {/* Profile Info */}
               <div className="flex-1">
-                <h1 className="text-3xl font-bold flex items-center gap-2">
+                <h1 className="text-3xl font-bold">
                   {profileData.full_name}
-                  {profileData.is_verified && (
-                    <span title="Verified">
-                      <CheckCircle className="w-6 h-6 text-blue-500" />
-                    </span>
-                  )}
-                  {profileData.is_premium && (
-                    <span title="Premium Member">
-                      <Crown className="w-6 h-6 text-yellow-500" />
-                    </span>
-                  )}
                 </h1>
                 <p className="text-gray-600 mt-2">{profileData.bio}</p>
 
@@ -536,7 +544,7 @@ export default function ProfilePage() {
       )}
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-        <ProfileForm />
+        <ProfileForm onSave={() => loadProfile(user.id)} />
       </div>
     </div>
   );

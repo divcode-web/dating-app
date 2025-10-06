@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Match, Message, UserProfile } from "@/lib/types";
 import { getUserProfile, getMessages, sendMessage } from "@/lib/api";
 import { format } from "date-fns";
-import { Send, Image, MessageCircle, X, Flag, UserX, Eye } from "lucide-react";
+import { Send, Image, MessageCircle, X, Flag, UserX, Eye, Bell, ArrowDown } from "lucide-react";
 import { encryptMessage, decryptMessage } from "@/lib/encryption";
 
 interface MatchWithProfile extends Match {
@@ -57,6 +57,8 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [adminMessages, setAdminMessages] = useState<AdminMessage[]>([]);
   const [selectedAdminMessage, setSelectedAdminMessage] = useState<AdminMessage | null>(null);
+  const [adminConversation, setAdminConversation] = useState<Message[]>([]);
+  const [adminId, setAdminId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -64,6 +66,11 @@ export default function MessagesPage() {
   const [uploading, setUploading] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [reportReason, setReportReason] = useState("");
+  const [showAdminNotifications, setShowAdminNotifications] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const adminMessagesEndRef = useRef<HTMLDivElement>(null);
+  const adminMessagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -74,32 +81,102 @@ export default function MessagesPage() {
 
   const loadAdminMessages = async () => {
     try {
-      // Load messages from admin users (messages without match_id)
-      const { data } = await supabase
-        .from("messages")
+      // Get admin users
+      const { data: adminUsers } = await supabase
+        .from("admin_users")
+        .select("id");
+
+      if (adminUsers && adminUsers.length > 0) {
+        setAdminId(adminUsers[0].id);
+      }
+
+      // Load latest admin message from admin_messages table (ONLY from admin, NOT user replies)
+      const { data, error } = await supabase
+        .from("admin_messages")
         .select(`
           *,
-          sender:user_profiles!messages_sender_id_fkey(id, full_name, photos, is_verified, is_premium)
+          admin:admin_users(id, role)
         `)
-        .eq("receiver_id", user?.id)
-        .is("match_id", null)
-        .order("sent_at", { ascending: false });
+        .eq("recipient_id", user?.id)
+        .not("admin_id", "is", null) // ONLY messages FROM admin (exclude user replies where admin_id is null)
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-      if (data) {
-        // Transform to admin messages format
-        const adminMsgs = data.map(msg => ({
-          id: msg.id,
-          subject: '',
-          content: msg.content,
-          message_type: 'system',
-          created_at: msg.sent_at,
-          is_read: msg.is_read || false,
-          sender: msg.sender
-        }));
-        setAdminMessages(adminMsgs as any);
+      if (error) {
+        console.error("Error loading admin messages:", error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const latestMsg = data[0];
+
+        // Get admin profile
+        const { data: adminProfile } = await supabase
+          .from("user_profiles")
+          .select("id, full_name, photos, is_verified, is_premium")
+          .eq("id", latestMsg.admin_id)
+          .single();
+
+        setAdminMessages([{
+          id: 'admin-support',
+          subject: latestMsg.subject || '',
+          content: latestMsg.content,
+          message_type: latestMsg.message_type || 'system',
+          created_at: latestMsg.created_at,
+          is_read: latestMsg.is_read || false,
+          sender: adminProfile
+        }] as any);
+      } else {
+        setAdminMessages([]);
       }
     } catch (error) {
       console.error("Error loading admin messages:", error);
+    }
+  };
+
+  const loadAdminConversation = async (scrollToBottom = false) => {
+    if (!user?.id) return;
+
+    try {
+      const { data } = await supabase
+        .from("admin_messages")
+        .select("*")
+        .eq("recipient_id", user.id)
+        .order("created_at", { ascending: true });
+
+      // Convert admin_messages format to Message format for UI
+      // admin_id = null means it's FROM the user (a reply)
+      // admin_id = not null means it's FROM admin TO user
+      const formattedMessages = (data || []).map(msg => ({
+        id: msg.id,
+        sender_id: msg.admin_id || user.id, // If admin_id is null, sender is the user
+        content: msg.content,
+        sent_at: msg.created_at,
+        is_read: msg.is_read,
+        created_at: msg.created_at
+      }));
+
+      setAdminConversation(formattedMessages as any);
+
+      // Mark unread messages as read (only admin messages, not user's own replies)
+      if (data) {
+        const unreadIds = data.filter(m => !m.is_read && m.admin_id !== null).map(m => m.id);
+        if (unreadIds.length > 0) {
+          await supabase
+            .from("admin_messages")
+            .update({ is_read: true, read_at: new Date().toISOString() })
+            .in("id", unreadIds);
+        }
+      }
+
+      // Scroll to bottom only when requested (after sending message)
+      if (scrollToBottom) {
+        setTimeout(() => {
+          adminMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      }
+    } catch (error) {
+      console.error("Error loading admin conversation:", error);
     }
   };
 
@@ -263,6 +340,35 @@ export default function MessagesPage() {
     }
   };
 
+  const handleSendToAdmin = async () => {
+    if (!newMessage.trim() || !user?.id) return;
+
+    try {
+      setUploading(true);
+
+      // Insert user reply into admin_messages table with admin_id as null to indicate it's from user
+      const { error } = await supabase.from("admin_messages").insert({
+        admin_id: null, // null indicates message is FROM user TO admin
+        recipient_id: user.id, // Keep user as recipient for consistency in queries
+        message_type: 'reply',
+        subject: 'User Reply',
+        content: newMessage,
+      });
+
+      if (error) throw error;
+
+      setNewMessage("");
+      await loadAdminConversation(true); // Scroll to bottom after sending
+      await loadAdminMessages();
+      toast.success("Message sent");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleBlockUser = async () => {
     if (!selectedMatch || !user?.id) return;
 
@@ -342,7 +448,7 @@ export default function MessagesPage() {
     );
   }
 
-  if (matches.length === 0) {
+  if (matches.length === 0 && adminMessages.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-xl shadow-lg p-12 max-w-md text-center">
@@ -364,57 +470,73 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4">
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="grid grid-cols-3 h-[calc(100vh-2rem)]">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden h-[calc(100vh-2rem)]">
+        <div className="grid grid-cols-1 md:grid-cols-3 h-full">
           {/* Matches List */}
-          <div className="border-r">
-            <div className="p-4 border-b">
+          <div className="border-r hidden md:block h-full">
+            <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Messages</h2>
-            </div>
-            <div className="overflow-y-auto h-[calc(100vh-8rem)]">
-              {/* Admin Messages Section */}
+              {/* Admin Notification Bell */}
               {adminMessages.length > 0 && (
-                <div className="border-b bg-blue-50">
-                  <div className="p-3 bg-blue-100 font-semibold text-sm text-blue-900">
-                    System Messages
-                  </div>
-                  {adminMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      onClick={() => {
-                        setSelectedMatch(null);
-                        setSelectedAdminMessage(msg);
-                        if (!msg.is_read) markAsRead(msg.id);
-                      }}
-                      className={`p-3 border-b cursor-pointer hover:bg-blue-100 ${
-                        selectedAdminMessage?.id === msg.id ? "bg-blue-100" : ""
-                      } ${!msg.is_read ? "font-semibold" : ""}`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <img
-                          src={msg.sender?.photos?.[0] || "/default-avatar.png"}
-                          alt={msg.sender?.full_name || "Admin"}
-                          className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-blue-900 truncate">
-                            {msg.sender?.full_name || "System Message"}
-                          </div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                            {msg.content.substring(0, 50)}...
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {format(new Date(msg.created_at), "MMM d, h:mm a")}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAdminNotifications(!showAdminNotifications)}
+                    className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Bell className="w-5 h-5 text-gray-600" />
+                    {adminMessages.some(msg => !msg.is_read) && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                    )}
+                  </button>
+
+                  {/* Admin Notifications Dropdown */}
+                  {showAdminNotifications && (
+                    <div className="absolute right-0 top-12 w-80 bg-white border shadow-lg rounded-lg z-50 max-h-96 overflow-y-auto">
+                      <div className="p-3 bg-blue-50 border-b font-semibold text-sm text-blue-900 sticky top-0">
+                        System Messages
+                      </div>
+                      {adminMessages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          onClick={() => {
+                            setSelectedMatch(null);
+                            setSelectedAdminMessage(msg);
+                            loadAdminConversation();
+                            setShowAdminNotifications(false);
+                          }}
+                          className={`p-3 border-b cursor-pointer hover:bg-blue-50 ${
+                            !msg.is_read ? "bg-blue-50/50" : ""
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={msg.sender?.photos?.[0] || "/default-avatar.png"}
+                              alt={msg.sender?.full_name || "Admin"}
+                              className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-blue-900 truncate">
+                                {msg.sender?.full_name || "System Message"}
+                              </div>
+                              <div className="text-xs text-gray-600 truncate">
+                                {msg.content.substring(0, 50)}...
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {format(new Date(msg.created_at), "MMM d, h:mm a")}
+                              </div>
+                            </div>
+                            {!msg.is_read && (
+                              <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                            )}
                           </div>
                         </div>
-                        {!msg.is_read && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
-                        )}
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
+            </div>
+            <div className="flex-1 overflow-y-auto">
 
               {/* User Matches */}
               {matches.map((match) => (
@@ -450,11 +572,74 @@ export default function MessagesPage() {
           </div>
 
           {/* Chat Area */}
-          <div className="col-span-2">
+          <div className="col-span-1 md:col-span-2 h-full flex flex-col overflow-hidden">
+            {/* Mobile Header with Bell Icon */}
+            <div className="md:hidden p-4 border-b flex items-center justify-between bg-white">
+              <h2 className="text-xl font-semibold">Messages</h2>
+              {adminMessages.length > 0 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAdminNotifications(!showAdminNotifications)}
+                    className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Bell className="w-5 h-5 text-gray-600" />
+                    {adminMessages.some(msg => !msg.is_read) && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                    )}
+                  </button>
+
+                  {/* Admin Notifications Dropdown - Mobile */}
+                  {showAdminNotifications && (
+                    <div className="absolute right-0 top-12 w-80 bg-white border shadow-lg rounded-lg z-50 max-h-96 overflow-y-auto">
+                      <div className="p-3 bg-blue-50 border-b font-semibold text-sm text-blue-900 sticky top-0">
+                        System Messages
+                      </div>
+                      {adminMessages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          onClick={() => {
+                            setSelectedMatch(null);
+                            setSelectedAdminMessage(msg);
+                            loadAdminConversation();
+                            setShowAdminNotifications(false);
+                          }}
+                          className={`p-3 border-b cursor-pointer hover:bg-blue-50 ${
+                            !msg.is_read ? "bg-blue-50/50" : ""
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={msg.sender?.photos?.[0] || "/default-avatar.png"}
+                              alt={msg.sender?.full_name || "Admin"}
+                              className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-blue-900 truncate">
+                                {msg.sender?.full_name || "System Message"}
+                              </div>
+                              <div className="text-xs text-gray-600 truncate">
+                                {msg.content.substring(0, 50)}...
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {format(new Date(msg.created_at), "MMM d, h:mm a")}
+                              </div>
+                            </div>
+                            {!msg.is_read && (
+                              <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {selectedAdminMessage ? (
               /* Admin Message View */
-              <div className="flex flex-col h-full">
-                <div className="p-4 border-b bg-gradient-to-r from-pink-500 to-purple-600">
+              <div className="flex flex-col h-full overflow-hidden">
+                <div className="p-4 border-b bg-gradient-to-r from-pink-500 to-purple-600 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <img
@@ -469,26 +654,94 @@ export default function MessagesPage() {
                         </p>
                       </div>
                     </div>
+                    <button
+                      onClick={() => setSelectedAdminMessage(null)}
+                      className="text-white hover:bg-white/20 p-2 rounded-full transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
-                  {/* Message Content */}
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
-                    <div className="space-y-3 whitespace-pre-wrap">
-                      {selectedAdminMessage.content}
-                    </div>
-                  </div>
+                {/* Messages Area */}
+                <div
+                  ref={adminMessagesContainerRef}
+                  className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-4 bg-gray-50 dark:bg-gray-900 min-h-0 relative"
+                  onScroll={(e) => {
+                    const target = e.target as HTMLDivElement;
+                    const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+                    setShowScrollButton(!isAtBottom);
+                  }}
+                >
+                  {adminConversation.map((message) => {
+                    const isFromUser = message.sender_id === user?.id;
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex ${isFromUser ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-3 ${
+                            isFromUser
+                              ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-br-sm"
+                              : "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm rounded-bl-sm"
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap break-words text-sm md:text-base">
+                            {message.content}
+                          </p>
+                          <p
+                            className={`text-xs mt-1 ${
+                              isFromUser ? "text-pink-100" : "text-gray-500"
+                            }`}
+                          >
+                            {format(new Date(message.sent_at), "h:mm a")}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={adminMessagesEndRef} />
 
-                  {/* Info Notice */}
-                  <div className="mt-4 text-xs text-gray-500 text-center">
-                    Messages from admin cannot be replied to
+                  {/* Scroll to Bottom Button */}
+                  {showScrollButton && (
+                    <button
+                      onClick={() => adminMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
+                      className="fixed bottom-24 right-8 bg-gradient-to-r from-pink-500 to-purple-600 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all z-10"
+                    >
+                      <ArrowDown className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Message Input */}
+                <div className="p-3 md:p-4 border-t bg-white dark:bg-gray-800 flex-shrink-0">
+                  <div className="flex items-end space-x-2">
+                    <Input
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendToAdmin();
+                        }
+                      }}
+                      placeholder="Type your message..."
+                      className="flex-1 text-sm md:text-base"
+                    />
+                    <Button
+                      onClick={handleSendToAdmin}
+                      disabled={!newMessage.trim() || uploading}
+                      className="bg-gradient-to-r from-pink-500 to-purple-600 flex-shrink-0"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </div>
             ) : selectedMatch ? (
               <>
                 {/* Chat Header */}
-                <div className="p-4 border-b">
+                <div className="p-4 border-b flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <img
@@ -542,7 +795,7 @@ export default function MessagesPage() {
                 </div>
 
                 {/* Messages */}
-                <div className="p-4 overflow-y-auto h-[calc(100vh-16rem)]">
+                <div className="flex-1 overflow-y-auto p-4">
                   {messages.map((message) => (
                     <div
                       key={message.id}
@@ -579,7 +832,7 @@ export default function MessagesPage() {
                 </div>
 
                 {/* Message Input */}
-                <div className="p-4 border-t">
+                <div className="p-4 border-t flex-shrink-0">
                   {imagePreview && (
                     <div className="mb-3 relative inline-block">
                       <img

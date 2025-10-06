@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { getUserProfile, updateUserProfile, uploadPhoto } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +59,8 @@ export function Dashboard() {
     isOnline: false
   });
   const [showNotifications, setShowNotifications] = useState(false);
+  const [adminMessages, setAdminMessages] = useState<any[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   // Close notifications dropdown when clicking outside
   useEffect(() => {
@@ -70,6 +73,13 @@ export function Dashboard() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showNotifications]);
+
+  // Load admin messages on component mount
+  useEffect(() => {
+    if (user?.id) {
+      loadAdminMessages();
+    }
+  }, [user?.id]);
 
   const tabs = [
     { id: "discover", label: "Discover", icon: Heart },
@@ -96,6 +106,58 @@ export function Dashboard() {
     setCurrentFilters(filters);
     console.log('Applied filters:', filters);
     // Here you would typically filter the profiles based on these criteria
+  };
+
+  const loadAdminMessages = async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoadingNotifications(true);
+
+      // Load unread admin messages
+      const { data, error } = await supabase
+        .from("admin_messages")
+        .select(`
+          *,
+          admin:admin_users(id, role)
+        `)
+        .eq("recipient_id", user.id)
+        .eq("is_read", false)
+        .not("admin_id", "is", null) // Only messages from admin
+        .order("created_at", { ascending: false })
+        .limit(5); // Show up to 5 recent unread messages
+
+      if (error) {
+        console.error("Error loading admin messages:", error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Get admin profile for each message
+        const messagesWithProfiles = await Promise.all(
+          data.map(async (msg) => {
+            const { data: adminProfile } = await supabase
+              .from("user_profiles")
+              .select("id, full_name, photos, is_verified, is_premium")
+              .eq("id", msg.admin_id)
+              .single();
+
+            return {
+              ...msg,
+              sender: adminProfile
+            };
+          })
+        );
+
+        setAdminMessages(messagesWithProfiles);
+      } else {
+        setAdminMessages([]);
+      }
+    } catch (error) {
+      console.error("Error loading admin messages:", error);
+    } finally {
+      setLoadingNotifications(false);
+    }
   };
 
   return (
@@ -133,11 +195,19 @@ export function Dashboard() {
                   </div>
                 </div>
 
-                <Button variant="outline" size="icon" className="relative" onClick={() => setShowNotifications(!showNotifications)}>
+                <Button variant="outline" size="icon" className="relative" onClick={() => {
+                  const newState = !showNotifications;
+                  setShowNotifications(newState);
+                  if (newState) {
+                    loadAdminMessages();
+                  }
+                }}>
                   <Bell className="w-4 h-4" />
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
-                    <span className="text-xs text-white font-bold">3</span>
-                  </div>
+                  {adminMessages.length > 0 && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                      <span className="text-xs text-white font-bold">{adminMessages.length}</span>
+                    </div>
+                  )}
                 </Button>
                 <Button variant="outline" size="icon" onClick={() => router.push('/settings')}>
                   <Settings className="w-4 h-4" />
@@ -154,46 +224,51 @@ export function Dashboard() {
               <h3 className="font-semibold text-gray-800">Notifications</h3>
             </div>
             <div className="max-h-96 overflow-y-auto">
-              <div className="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Heart className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800">New Match!</p>
-                    <p className="text-xs text-gray-500">You matched with Sarah Johnson</p>
-                    <p className="text-xs text-gray-400 mt-1">2 minutes ago</p>
-                  </div>
+              {loadingNotifications ? (
+                <div className="p-4 text-center">
+                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <p className="text-sm text-gray-500">Loading notifications...</p>
                 </div>
-              </div>
-              <div className="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <MessageCircle className="w-4 h-4 text-green-600" />
+              ) : adminMessages.length > 0 ? (
+                adminMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    onClick={() => {
+                      setShowNotifications(false);
+                      router.push('/messages');
+                    }}
+                    className="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <MessageCircle className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-800">Admin Message</p>
+                        <p className="text-xs text-gray-500">{msg.subject || 'System Message'}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(msg.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800">New Message</p>
-                    <p className="text-xs text-gray-500">Mike Chen sent you a message</p>
-                    <p className="text-xs text-gray-400 mt-1">1 hour ago</p>
-                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center">
+                  <p className="text-sm text-gray-500">No new notifications</p>
                 </div>
-              </div>
-              <div className="p-4 hover:bg-gray-50 cursor-pointer">
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Star className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800">Super Like!</p>
-                    <p className="text-xs text-gray-500">Emma Davis super liked your profile</p>
-                    <p className="text-xs text-gray-400 mt-1">3 hours ago</p>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
             <div className="p-3 border-t border-gray-200 text-center">
-              <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                View All Notifications
+              <button
+                onClick={() => {
+                  setShowNotifications(false);
+                  router.push('/messages');
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                View All Messages
               </button>
             </div>
           </div>
