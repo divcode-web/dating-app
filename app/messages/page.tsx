@@ -68,6 +68,7 @@ export default function MessagesPage() {
   const [reportReason, setReportReason] = useState("");
   const [showAdminNotifications, setShowAdminNotifications] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
   const adminMessagesEndRef = useRef<HTMLDivElement>(null);
   const adminMessagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -76,8 +77,24 @@ export default function MessagesPage() {
     if (user?.id) {
       loadMatches();
       loadAdminMessages();
+      loadBlockedUsers();
     }
   }, [user?.id]);
+
+  const loadBlockedUsers = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data } = await supabase
+        .from("blocked_users")
+        .select("blocked_id")
+        .eq("blocker_id", user.id);
+
+      setBlockedUsers(new Set(data?.map(b => b.blocked_id) || []));
+    } catch (error) {
+      console.error("Error loading blocked users:", error);
+    }
+  };
 
   const loadAdminMessages = async () => {
     try {
@@ -382,16 +399,52 @@ export default function MessagesPage() {
         blocker_id: user.id,
         blocked_id: otherUserId,
         reason: "Blocked from chat",
+        blocked_by_admin: false,
       });
 
       if (error) throw error;
 
       toast.success("User blocked successfully");
+      setBlockedUsers(prev => new Set(Array.from(prev).concat(otherUserId)));
       setSelectedMatch(null);
       loadMatches();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error blocking user:", error);
-      toast.error("Failed to block user");
+      if (error.code === '23505') {
+        toast.error("User is already blocked");
+      } else {
+        toast.error("Failed to block user");
+      }
+    }
+  };
+
+  const handleUnblockUser = async () => {
+    if (!selectedMatch || !user?.id) return;
+
+    const otherUserId =
+      selectedMatch.user_id_1 === user.id
+        ? selectedMatch.user_id_2
+        : selectedMatch.user_id_1;
+
+    try {
+      const { error } = await supabase
+        .from("blocked_users")
+        .delete()
+        .eq("blocker_id", user.id)
+        .eq("blocked_id", otherUserId);
+
+      if (error) throw error;
+
+      toast.success("User unblocked successfully");
+      setBlockedUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(otherUserId);
+        return newSet;
+      });
+      loadMatches();
+    } catch (error) {
+      console.error("Error unblocking user:", error);
+      toast.error("Failed to unblock user");
     }
   };
 
@@ -437,7 +490,12 @@ export default function MessagesPage() {
   };
 
   const formatTime = (date: string) => {
-    return format(new Date(date), "HH:mm");
+    if (!date) return "";
+    try {
+      return format(new Date(date), "HH:mm");
+    } catch {
+      return "";
+    }
   };
 
   if (loading) {
@@ -476,9 +534,9 @@ export default function MessagesPage() {
           <div className={`border-r h-full ${selectedMatch || selectedAdminMessage ? 'hidden md:block' : 'block'}`}>
             <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Messages</h2>
-              {/* Admin Notification Bell */}
+              {/* Admin Notification Bell - Desktop Only */}
               {adminMessages.length > 0 && (
-                <div className="relative">
+                <div className="relative hidden md:block">
                   <button
                     onClick={() => setShowAdminNotifications(!showAdminNotifications)}
                     className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -539,35 +597,46 @@ export default function MessagesPage() {
             <div className="flex-1 overflow-y-auto">
 
               {/* User Matches */}
-              {matches.map((match) => (
-                <div
-                  key={match.id}
-                  onClick={() => {
-                    setSelectedMatch(match);
-                    setSelectedAdminMessage(null);
-                  }}
-                  className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
-                    selectedMatch?.id === match.id ? "bg-gray-50" : ""
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <img
-                      src={match.profile.photos?.[0] || "/default-avatar.png"}
-                      alt={match.profile.full_name}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                    <div>
-                      <h3 className="font-medium">{match.profile.full_name}</h3>
-                      {match.lastMessage && (
-                        <DecryptedMessage
-                          content={match.lastMessage.content}
-                          className="text-sm text-gray-500 truncate"
+              {matches.map((match) => {
+                const isOnline = match.profile?.last_active
+                  ? new Date(match.profile.last_active).getTime() > Date.now() - 5 * 60 * 1000
+                  : false;
+
+                return (
+                  <div
+                    key={match.id}
+                    onClick={() => {
+                      setSelectedMatch(match);
+                      setSelectedAdminMessage(null);
+                    }}
+                    className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
+                      selectedMatch?.id === match.id ? "bg-gray-50" : ""
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="relative">
+                        <img
+                          src={match.profile.photos?.[0] || "/default-avatar.png"}
+                          alt={match.profile.full_name}
+                          className="w-12 h-12 rounded-full object-cover"
                         />
-                      )}
+                        <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                          isOnline ? "bg-green-500" : "bg-gray-400"
+                        }`}></div>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{match.profile.full_name}</h3>
+                        {match.lastMessage && (
+                          <DecryptedMessage
+                            content={match.lastMessage.content}
+                            className="text-sm text-gray-500 truncate"
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -588,7 +657,7 @@ export default function MessagesPage() {
               )}
               <h2 className="text-xl font-semibold">Messages</h2>
               {adminMessages.length > 0 && (
-                <div className="relative">
+                <div className="relative md:hidden">
                   <button
                     onClick={() => setShowAdminNotifications(!showAdminNotifications)}
                     className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -607,7 +676,7 @@ export default function MessagesPage() {
                       </div>
                       {adminMessages.map((msg) => (
                         <div
-                          key={msg.id}
+                          key={`mobile-${msg.id}`}
                           onClick={() => {
                             setSelectedMatch(null);
                             setSelectedAdminMessage(msg);
@@ -755,15 +824,23 @@ export default function MessagesPage() {
                 <div className="p-4 border-b flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <img
-                        src={
-                          selectedMatch.profile.photos?.[0] ||
-                          "/default-avatar.png"
-                        }
-                        alt={selectedMatch.profile.full_name}
-                        className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80"
-                        onClick={handleViewProfile}
-                      />
+                      <div className="relative">
+                        <img
+                          src={
+                            selectedMatch.profile.photos?.[0] ||
+                            "/default-avatar.png"
+                          }
+                          alt={selectedMatch.profile.full_name}
+                          className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80"
+                          onClick={handleViewProfile}
+                        />
+                        <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                          selectedMatch.profile?.last_active &&
+                          new Date(selectedMatch.profile.last_active).getTime() > Date.now() - 5 * 60 * 1000
+                            ? "bg-green-500"
+                            : "bg-gray-400"
+                        }`}></div>
+                      </div>
                       <div>
                         <h3 className="font-medium cursor-pointer hover:text-pink-600" onClick={handleViewProfile}>
                           {selectedMatch.profile.full_name}
@@ -793,14 +870,29 @@ export default function MessagesPage() {
                       >
                         <Flag className="w-4 h-4 text-orange-500" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleBlockUser}
-                        title="Block User"
-                      >
-                        <UserX className="w-4 h-4 text-red-500" />
-                      </Button>
+                      {blockedUsers.has(
+                        selectedMatch.user_id_1 === user?.id
+                          ? selectedMatch.user_id_2
+                          : selectedMatch.user_id_1
+                      ) ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleUnblockUser}
+                          title="Unblock User"
+                        >
+                          <UserX className="w-4 h-4 text-green-500" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleBlockUser}
+                          title="Block User"
+                        >
+                          <UserX className="w-4 h-4 text-red-500" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

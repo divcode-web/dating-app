@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useAuth } from '@/components/auth-provider'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -72,6 +73,20 @@ export function AuthForm() {
 
     setIsLoading(true)
     try {
+      // Check if email is permanently banned (only if table exists)
+      const { data: bannedEmail, error: banCheckError } = await supabase
+        .from('banned_emails')
+        .select('ban_reason')
+        .eq('email', email.toLowerCase())
+        .single()
+
+      // If table doesn't exist, ignore error and continue
+      if (bannedEmail && !banCheckError) {
+        toast.error('This email has been permanently banned from the platform.')
+        setIsLoading(false)
+        return
+      }
+
       const profileData = {
         full_name: fullName,
         age: ageNum,

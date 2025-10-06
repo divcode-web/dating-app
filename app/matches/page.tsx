@@ -94,15 +94,25 @@ export default function MatchesPage() {
         <h1 className="text-3xl font-bold mb-6">Your Matches</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {matches.map((match) => (
-            <Card key={match.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="relative h-64">
-                <img
-                  src={match.profile?.photos?.[0] || "/default-avatar.png"}
-                  alt={match.profile?.full_name || "User"}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+          {matches.map((match) => {
+            const isOnline = match.profile?.last_active
+              ? new Date(match.profile.last_active).getTime() > Date.now() - 5 * 60 * 1000
+              : false;
+
+            return (
+              <Card key={match.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="relative h-64">
+                  <img
+                    src={match.profile?.photos?.[0] || "/default-avatar.png"}
+                    alt={match.profile?.full_name || "User"}
+                    className="w-full h-full object-cover"
+                  />
+                  {match.profile?.last_active && (
+                    <div className={`absolute top-4 right-4 w-3 h-3 rounded-full border-2 border-white ${
+                      isOnline ? "bg-green-500" : "bg-gray-400"
+                    }`}></div>
+                  )}
+                </div>
               <div className="p-4">
                 <h3 className="text-xl font-semibold">
                   {match.profile?.full_name || "User"}
@@ -123,7 +133,8 @@ export default function MatchesPage() {
                 </Button>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

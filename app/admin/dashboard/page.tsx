@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users,
@@ -17,6 +18,8 @@ import {
   LogOut,
   MessageSquare,
   BookOpen,
+  Search,
+  Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -63,6 +66,9 @@ interface UserProfile {
   last_active: string;
   photos: string[];
   blocked_by_admin?: boolean;
+  blocked_at?: string;
+  blocked_until?: string;
+  block_reason?: string;
 }
 
 export default function AdminDashboard() {
@@ -81,11 +87,29 @@ export default function AdminDashboard() {
   const [reports, setReports] = useState<Report[]>([]);
   const [verifications, setVerifications] = useState<VerificationRequest[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     checkAdminAccess();
   }, []);
+
+  useEffect(() => {
+    // Filter users based on search query
+    if (searchQuery.trim() === "") {
+      setFilteredUsers(users);
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredUsers(
+        users.filter(user =>
+          user.full_name.toLowerCase().includes(query) ||
+          user.location_city?.toLowerCase().includes(query) ||
+          user.gender?.toLowerCase().includes(query)
+        )
+      );
+    }
+  }, [searchQuery, users]);
 
   const checkAdminAccess = async () => {
     try {
@@ -221,19 +245,18 @@ export default function AdminDashboard() {
     try {
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("id, full_name, date_of_birth, gender, location_city, is_premium, is_verified, created_at, last_active, photos")
+        .select("id, full_name, date_of_birth, gender, location_city, is_premium, is_verified, created_at, last_active, photos, blocked_by_admin, blocked_at, blocked_until, block_reason")
         .order("created_at", { ascending: false })
         .limit(100);
 
       if (error) throw error;
 
-      // Load blocked users
-      const { data: blocked } = await supabase
-        .from("blocked_users")
-        .select("blocked_id")
-        .eq("blocked_by_admin", true);
-
-      const blockedSet = new Set(blocked?.map(b => b.blocked_id) || []);
+      // Create set of blocked user IDs
+      const blockedSet = new Set(
+        (data || [])
+          .filter(u => u.blocked_by_admin)
+          .map(u => u.id)
+      );
       setBlockedUsers(blockedSet);
       setUsers(data || []);
     } catch (error) {
@@ -285,48 +308,64 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleBlockUser = async (userId: string, reason: string = "Blocked by admin") => {
+  const handleBlockUser = async (userId: string) => {
+    const reason = prompt("Enter reason for blocking (optional):");
+
+    if (!confirm("Block this user? They won't be able to login. Data will be kept for 2 weeks in case of appeal, then permanently deleted.")) {
+      return;
+    }
+
     try {
-      // Insert admin block record (blocker_id = admin, blocked_id = user)
-      const { error } = await supabase
-        .from("blocked_users")
-        .insert({
-          blocker_id: adminUser.id,
-          blocked_id: userId,
+      const blockedAt = new Date();
+      const blockedUntil = new Date();
+      blockedUntil.setDate(blockedUntil.getDate() + 14); // 2 weeks from now
+
+      // Soft delete - mark as blocked
+      const { error: profileError } = await supabase
+        .from("user_profiles")
+        .update({
           blocked_by_admin: true,
-          reason,
-          admin_id: adminUser.id,
-        });
+          blocked_at: blockedAt.toISOString(),
+          blocked_until: blockedUntil.toISOString(),
+          block_reason: reason || "Blocked by admin"
+        })
+        .eq("id", userId);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
 
-      toast.success("User blocked successfully");
+      toast.success("User blocked successfully. Data will be deleted in 2 weeks if not appealed.");
       await loadUsers();
+      await loadStats();
     } catch (error: any) {
       console.error("Error blocking user:", error);
-      if (error.code === '23505') {
-        toast.error("User is already blocked");
-      } else {
-        toast.error("Failed to block user");
-      }
+      toast.error("Failed to block user: " + error.message);
     }
   };
 
   const handleUnblockUser = async (userId: string) => {
+    if (!confirm("Unblock this user? They will be able to login again.")) {
+      return;
+    }
+
     try {
       const { error } = await supabase
-        .from("blocked_users")
-        .delete()
-        .eq("blocked_id", userId)
-        .eq("blocked_by_admin", true);
+        .from("user_profiles")
+        .update({
+          blocked_by_admin: false,
+          blocked_at: null,
+          blocked_until: null,
+          block_reason: null
+        })
+        .eq("id", userId);
 
       if (error) throw error;
 
       toast.success("User unblocked successfully");
       await loadUsers();
-    } catch (error) {
+      await loadStats();
+    } catch (error: any) {
       console.error("Error unblocking user:", error);
-      toast.error("Failed to unblock user");
+      toast.error("Failed to unblock user: " + error.message);
     }
   };
 
@@ -457,12 +496,23 @@ export default function AdminDashboard() {
           {/* Users Tab */}
           <TabsContent value="users">
             <Card className="p-6 bg-white/10 backdrop-blur-lg border-white/20">
-              <h2 className="text-xl font-bold text-white mb-4">All Users</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">All Users</h2>
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by name, location..."
+                    className="pl-10 bg-white/5 border-white/20 text-white placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
               <div className="space-y-4">
-                {users.length === 0 ? (
+                {filteredUsers.length === 0 ? (
                   <p className="text-gray-400 text-center py-8">No users found</p>
                 ) : (
-                  users.map((user) => (
+                  filteredUsers.map((user) => (
                     <div
                       key={user.id}
                       className="border border-white/10 rounded-lg p-4 hover:bg-white/5 transition-colors"
@@ -518,6 +568,26 @@ export default function AdminDashboard() {
                           <div className="mt-2 text-xs text-gray-400">
                             Last active: {new Date(user.last_active).toLocaleString()}
                           </div>
+
+                          {/* Blocked Info */}
+                          {user.blocked_by_admin && (
+                            <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded text-xs">
+                              <div className="text-red-400 font-semibold">⚠️ BLOCKED</div>
+                              {user.block_reason && (
+                                <div className="text-gray-300 mt-1">Reason: {user.block_reason}</div>
+                              )}
+                              {user.blocked_at && (
+                                <div className="text-gray-400 mt-1">
+                                  Blocked: {new Date(user.blocked_at).toLocaleString()}
+                                </div>
+                              )}
+                              {user.blocked_until && (
+                                <div className="text-orange-400 mt-1">
+                                  Auto-delete: {new Date(user.blocked_until).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Actions */}
@@ -528,6 +598,7 @@ export default function AdminDashboard() {
                               onClick={() => handleUnblockUser(user.id)}
                               className="bg-green-500/20 text-green-400 hover:bg-green-500/30"
                             >
+                              <CheckCircle className="w-4 h-4 mr-1" />
                               Unblock
                             </Button>
                           ) : (

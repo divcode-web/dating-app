@@ -79,7 +79,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
 
-      if (event === "SIGNED_IN") {
+      if (event === "SIGNED_IN" && session?.user) {
+        // Check if user is blocked by admin (only if columns exist)
+        const { data: profile, error: profileError } = await supabase!
+          .from("user_profiles")
+          .select("blocked_by_admin, blocked_until, block_reason")
+          .eq("id", session.user.id)
+          .single();
+
+        // Only check block status if columns exist (no error)
+        if (!profileError && profile?.blocked_by_admin) {
+          // Check if block is still active
+          const isBlockActive = !profile.blocked_until || new Date(profile.blocked_until) > new Date();
+
+          if (isBlockActive) {
+            await supabase!.auth.signOut();
+            toast.error(profile.block_reason || "Your account has been blocked. Please contact support.");
+            window.location.href = "/";
+            return;
+          }
+        }
+
         // Don't redirect if already on admin portal
         const isAdminPortal = window.location.pathname.startsWith("/admin");
         if (!isAdminPortal) {
