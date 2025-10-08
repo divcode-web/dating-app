@@ -71,6 +71,13 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
   const [bookResults, setBookResults] = useState<any[]>([]);
   const [searchingBooks, setSearchingBooks] = useState(false);
 
+  // Spotify search states
+  const [spotifySearch, setSpotifySearch] = useState("");
+  const [spotifySearchType, setSpotifySearchType] = useState<"artist" | "track">("artist");
+  const [spotifyResults, setSpotifyResults] = useState<any[]>([]);
+  const [searchingSpotify, setSearchingSpotify] = useState(false);
+  const [showSpotifySearch, setShowSpotifySearch] = useState(false);
+
   useEffect(() => {
     const loadProfile = async () => {
       if (!user?.id) return;
@@ -266,6 +273,84 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
 
     // Redirect to Spotify OAuth flow
     window.location.href = `/api/spotify/auth?userId=${user.id}`;
+  };
+
+  const searchSpotify = async (query: string, type: "artist" | "track") => {
+    if (!query.trim() || !user?.id) {
+      setSpotifyResults([]);
+      return;
+    }
+
+    try {
+      setSearchingSpotify(true);
+      const response = await fetch(
+        `/api/spotify/search?q=${encodeURIComponent(query)}&type=${type}&userId=${user.id}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Search failed");
+      }
+
+      const data = await response.json();
+      setSpotifyResults(type === "artist" ? data.artists : data.tracks);
+    } catch (error) {
+      console.error("Error searching Spotify:", error);
+      toast.error("Failed to search Spotify. Make sure you're connected.");
+    } finally {
+      setSearchingSpotify(false);
+    }
+  };
+
+  const addSpotifyArtist = (artist: any) => {
+    const currentArtists = profile.spotify_top_artists || [];
+    if (currentArtists.length >= 5) {
+      toast.error("Maximum 5 artists allowed");
+      return;
+    }
+
+    if (currentArtists.includes(artist.name)) {
+      toast.error("Artist already added");
+      return;
+    }
+
+    setProfile((prev) => ({
+      ...prev,
+      spotify_top_artists: [...currentArtists, artist.name],
+    }));
+
+    setSpotifySearch("");
+    setSpotifyResults([]);
+    toast.success(`Added ${artist.name}`);
+  };
+
+  const removeSpotifyArtist = (index: number) => {
+    const currentArtists = [...(profile.spotify_top_artists || [])];
+    currentArtists.splice(index, 1);
+    setProfile((prev) => ({
+      ...prev,
+      spotify_top_artists: currentArtists,
+    }));
+    toast.success("Artist removed");
+  };
+
+  const setSpotifyAnthem = (track: any) => {
+    const anthem = {
+      track_id: track.id,
+      track_name: track.name,
+      artist_name: track.artists[0]?.name || "Unknown",
+      preview_url: track.preview_url,
+      album_image: track.album?.images[0]?.url,
+    };
+
+    setProfile((prev) => ({
+      ...prev,
+      spotify_anthem: anthem,
+    }));
+
+    setSpotifySearch("");
+    setSpotifyResults([]);
+    setShowSpotifySearch(false);
+    toast.success(`Anthem set to "${track.name}"`);
   };
 
   const searchGoogleBooks = async (query: string) => {
@@ -824,10 +909,12 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
             <div>
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                 <Music className="w-5 h-5 text-green-600" />
-                Spotify Integration
+                Music Preferences
               </h3>
               <p className="text-sm text-gray-600">
-                Connect your Spotify to show your music taste
+                {profile.spotify_access_token
+                  ? "Add your favorite artists and anthem"
+                  : "Connect Spotify first to add music"}
               </p>
             </div>
             <Button
@@ -836,67 +923,209 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
               onClick={handleSpotifyConnect}
               className="border-green-300 text-green-700 hover:bg-green-100"
             >
-              {profile.spotify_top_artists && profile.spotify_top_artists.length > 0 ? "Reconnect" : "Connect Spotify"}
+              {profile.spotify_access_token ? "Reconnect" : "Connect Spotify"}
             </Button>
           </div>
 
-          {/* Show connected Spotify data */}
-          {(() => {
-            console.log("🎵 SPOTIFY DEBUG: Checking display conditions", {
-              hasArtists: !!profile.spotify_top_artists,
-              isArray: Array.isArray(profile.spotify_top_artists),
-              length: profile.spotify_top_artists?.length || 0,
-              hasAnthem: !!profile.spotify_anthem,
-              anthemType: typeof profile.spotify_anthem
-            });
-
-            return profile.spotify_top_artists &&
-                   Array.isArray(profile.spotify_top_artists) &&
-                   profile.spotify_top_artists.length > 0;
-          })() && (
-              <div className="mt-3 p-3 bg-white rounded-lg">
-                <p className="text-xs font-semibold text-gray-600 mb-2">
-                  TOP ARTISTS
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {profile.spotify_top_artists?.map(
-                    (artist: string, index: number) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
-                      >
-                        {artist}
-                      </span>
-                    )
+          {profile.spotify_access_token && (
+            <div className="mt-3 space-y-4">
+              {/* Top Artists Section */}
+              <div className="p-3 bg-white rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-600">
+                    TOP ARTISTS (Max 5)
+                  </p>
+                  {(!profile.spotify_top_artists || profile.spotify_top_artists.length < 5) && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setSpotifySearchType("artist");
+                        setShowSpotifySearch(!showSpotifySearch);
+                        setSpotifyResults([]);
+                      }}
+                      className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      + Add Artist
+                    </Button>
                   )}
                 </div>
 
-                {profile.spotify_anthem && typeof profile.spotify_anthem === 'object' && (
-                  <div className="mt-3 pt-3 border-t">
-                    <p className="text-xs font-semibold text-gray-600 mb-2">
-                      YOUR ANTHEM 🎵
-                    </p>
-                    <div className="flex items-center gap-3">
-                      {profile.spotify_anthem.album_image && (
-                        <img
-                          src={profile.spotify_anthem.album_image}
-                          alt="Album"
-                          className="w-12 h-12 rounded"
-                        />
-                      )}
-                      <div>
-                        <p className="font-medium text-sm">
-                          {profile.spotify_anthem.track_name}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          {profile.spotify_anthem.artist_name}
-                        </p>
+                {/* Artist Search */}
+                {showSpotifySearch && spotifySearchType === "artist" && (
+                  <div className="mb-3 relative">
+                    <Input
+                      placeholder="Search for artists..."
+                      value={spotifySearch}
+                      onChange={(e) => {
+                        setSpotifySearch(e.target.value);
+                        if (e.target.value.length > 1) {
+                          searchSpotify(e.target.value, "artist");
+                        } else {
+                          setSpotifyResults([]);
+                        }
+                      }}
+                      className="pr-10"
+                    />
+                    {searchingSpotify && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
                       </div>
-                    </div>
+                    )}
+
+                    {/* Artist Results */}
+                    {spotifyResults.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                        {spotifyResults.map((artist: any) => (
+                          <button
+                            key={artist.id}
+                            type="button"
+                            onClick={() => addSpotifyArtist(artist)}
+                            className="w-full p-3 hover:bg-gray-50 flex items-center gap-3 text-left border-b last:border-b-0"
+                          >
+                            {artist.images?.[0]?.url && (
+                              <img
+                                src={artist.images[0].url}
+                                alt={artist.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            )}
+                            <div>
+                              <p className="font-medium text-sm">{artist.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {artist.followers?.total.toLocaleString()} followers
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
+
+                {/* Selected Artists */}
+                {profile.spotify_top_artists && profile.spotify_top_artists.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {profile.spotify_top_artists.map((artist: string, index: number) => (
+                      <div
+                        key={index}
+                        className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm flex items-center gap-2"
+                      >
+                        {artist}
+                        <button
+                          type="button"
+                          onClick={() => removeSpotifyArtist(index)}
+                          className="hover:text-green-900"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 italic">No artists added yet</p>
+                )}
               </div>
-            )}
+
+              {/* Anthem Section */}
+              <div className="p-3 bg-white rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-600">
+                    YOUR ANTHEM 🎵
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setSpotifySearchType("track");
+                      setShowSpotifySearch(!showSpotifySearch);
+                      setSpotifyResults([]);
+                    }}
+                    className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  >
+                    {profile.spotify_anthem ? "Change" : "+ Add Anthem"}
+                  </Button>
+                </div>
+
+                {/* Track Search */}
+                {showSpotifySearch && spotifySearchType === "track" && (
+                  <div className="mb-3 relative">
+                    <Input
+                      placeholder="Search for a song..."
+                      value={spotifySearch}
+                      onChange={(e) => {
+                        setSpotifySearch(e.target.value);
+                        if (e.target.value.length > 1) {
+                          searchSpotify(e.target.value, "track");
+                        } else {
+                          setSpotifyResults([]);
+                        }
+                      }}
+                      className="pr-10"
+                    />
+                    {searchingSpotify && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
+                      </div>
+                    )}
+
+                    {/* Track Results */}
+                    {spotifyResults.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                        {spotifyResults.map((track: any) => (
+                          <button
+                            key={track.id}
+                            type="button"
+                            onClick={() => setSpotifyAnthem(track)}
+                            className="w-full p-3 hover:bg-gray-50 flex items-center gap-3 text-left border-b last:border-b-0"
+                          >
+                            {track.album?.images?.[0]?.url && (
+                              <img
+                                src={track.album.images[0].url}
+                                alt={track.name}
+                                className="w-10 h-10 rounded object-cover"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{track.name}</p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {track.artists.map((a: any) => a.name).join(", ")}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Selected Anthem */}
+                {profile.spotify_anthem && typeof profile.spotify_anthem === 'object' ? (
+                  <div className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                    {profile.spotify_anthem.album_image && (
+                      <img
+                        src={profile.spotify_anthem.album_image}
+                        alt="Album"
+                        className="w-12 h-12 rounded"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {profile.spotify_anthem.track_name}
+                      </p>
+                      <p className="text-xs text-gray-600 truncate">
+                        {profile.spotify_anthem.artist_name}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 italic">No anthem set yet</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Favorite Books - Google Books Integration */}

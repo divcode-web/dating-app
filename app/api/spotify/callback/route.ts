@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -131,54 +131,39 @@ export async function GET(request: NextRequest) {
       console.log('⚠️ Tracks fetch failed, continuing without anthem');
     }
 
-    // Save to database with tokens
+    // Save to database using service role key (bypasses RLS)
     console.log('💾 Saving to database...');
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
 
-    // First, save tokens (these fields exist)
-    const { error: tokenError } = await supabase
+    // Save all data in one update
+    const { error: updateError } = await supabase
       .from('user_profiles')
       .update({
         spotify_access_token: accessToken,
         spotify_refresh_token: refreshToken,
         spotify_token_expires_at: expiresAt.toISOString(),
+        spotify_top_artists: topArtists,
+        spotify_anthem: anthem,
       })
-      .eq('id', userId);
+      .eq('id', userId)
+      .select();
 
-    if (tokenError) {
-      console.error('❌ Token save failed:', tokenError);
-      throw tokenError;
+    if (updateError) {
+      console.error('❌ Database save failed:', updateError);
+      throw updateError;
     }
 
-    // Try to save music data (these fields might not exist yet)
-    try {
-      const { error: musicError } = await supabase
-        .from('user_profiles')
-        .update({
-          spotify_top_artists: topArtists,
-          spotify_anthem: anthem,
-        })
-        .eq('id', userId);
-
-      if (musicError) {
-        console.log('⚠️ Music data fields not available yet:', musicError.message);
-        // Don't throw error - tokens are saved successfully
-      } else {
-        console.log('✅ Music data saved successfully');
-      }
-    } catch (musicError) {
-      console.log('⚠️ Music data save failed (fields may not exist):', musicError);
-      // Don't throw error - tokens are saved successfully
-    }
-
-    console.log('✅ Spotify integration completed successfully - tokens saved');
-
-    // Check if music data was also saved
-    if (topArtists.length > 0 || anthem) {
-      console.log('✅ Music data also saved successfully');
-    } else {
-      console.log('⚠️ Music data fields not available yet - only tokens saved');
-    }
+    console.log('✅ Spotify integration completed successfully');
+    console.log('✅ Data saved:', {
+      hasTokens: true,
+      artistsCount: topArtists.length,
+      hasAnthem: !!anthem
+    });
 
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/profile?spotify_success=true&_t=${Date.now()}`

@@ -252,6 +252,16 @@
   .backdrop-blur-light {
     backdrop-filter: blur(8px) saturate(150%);
   }
+
+  /* Hide scrollbar for stories ring */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Keyframes */

@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, MapPin, Heart } from "lucide-react";
 import { getUserProfile } from "@/lib/api";
 import { UserProfile } from "@/lib/types";
+import { StoriesRing } from "@/components/stories-ring";
+import { StoryViewer } from "@/components/story-viewer";
+import { StoryUpload } from "@/components/story-upload";
 
 interface Match {
   id: string;
@@ -23,6 +26,10 @@ export default function MatchesPage() {
   const router = useRouter();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showStoryViewer, setShowStoryViewer] = useState(false);
+  const [showStoryUpload, setShowStoryUpload] = useState(false);
+  const [selectedStories, setSelectedStories] = useState<any>(null);
+  const [storiesKey, setStoriesKey] = useState(0);
 
   useEffect(() => {
     if (user?.id) {
@@ -93,6 +100,18 @@ export default function MatchesPage() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Your Matches</h1>
 
+        {/* Stories Ring */}
+        <div className="mb-6 bg-white rounded-2xl shadow-sm p-4">
+          <StoriesRing
+            key={storiesKey}
+            onStoryClick={(userStories) => {
+              setSelectedStories([userStories]);
+              setShowStoryViewer(true);
+            }}
+            onAddStoryClick={() => setShowStoryUpload(true)}
+          />
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {matches.map((match) => {
             const isOnline = match.profile?.last_active
@@ -137,6 +156,29 @@ export default function MatchesPage() {
           })}
         </div>
       </div>
+
+      {/* Story Viewer */}
+      {showStoryViewer && selectedStories && (
+        <StoryViewer
+          userStoriesData={selectedStories}
+          currentUserIndex={0}
+          onClose={() => {
+            setShowStoryViewer(false);
+            setSelectedStories(null);
+            setStoriesKey((prev) => prev + 1); // Refresh stories ring
+          }}
+        />
+      )}
+
+      {/* Story Upload */}
+      {showStoryUpload && (
+        <StoryUpload
+          onClose={() => setShowStoryUpload(false)}
+          onUploadComplete={() => {
+            setStoriesKey((prev) => prev + 1); // Refresh stories ring
+          }}
+        />
+      )}
     </div>
   );
 }

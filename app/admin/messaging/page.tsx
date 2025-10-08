@@ -436,19 +436,21 @@ Happy matching! ❤️`,
                 setFormData((prev) => ({
                   ...prev,
                   messageType: "announcement",
-                  subject: "New Features Available!",
+                  subject: "🎉 Exciting New Updates!",
                   content: `Hi there! 👋
 
-We've just released some exciting new features:
+We've just released some amazing new features:
 
-• Feature 1: [Description]
-• Feature 2: [Description]
-• Feature 3: [Description]
+✨ **Stories Feature** - Share 24-hour moments with your matches! Just like Instagram stories, you can now post photos and videos that disappear after 24 hours. Perfect for sharing daily highlights and starting conversations.
+
+🔄 **Cache Clear Tool** - If the app ever gets stuck or shows old content, you can now easily clear your cache from Settings → Account → App Performance. No more frustration with outdated content!
+
+💬 These updates are designed to help you connect better with your matches and have a smoother experience.
 
 Check them out and let us know what you think!
 
 Best regards,
-The DatingApp Team`,
+The DatingApp Team ❤️`,
                 }))
               }
             >

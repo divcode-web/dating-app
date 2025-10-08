@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useGeolocation } from "@/components/geolocation-provider";
-import { MapPin, CheckCircle2, Download, Trash2, AlertTriangle } from "lucide-react";
+import { MapPin, CheckCircle2, Download, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { getLocationAccuracy } from "@/lib/matching-score";
@@ -672,6 +672,26 @@ export default function SettingsPage() {
                       toggleDarkMode(checked, user?.id);
                     }}
                   />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">App Performance</h3>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2">Clear App Cache</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    If the app is stuck showing old content or not loading properly, clear the cache to fix it.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push('/clear-cache')}
+                    className="w-full"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Clear Cache & Reload
+                  </Button>
                 </div>
               </div>
             </div>

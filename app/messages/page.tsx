@@ -695,13 +695,13 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4">
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden h-[calc(100vh-2rem)]">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="max-w-4xl mx-auto bg-white dark:bg-gray-900 rounded-xl shadow-lg overflow-hidden h-[calc(100vh-2rem)]">
         <div className="grid grid-cols-1 md:grid-cols-3 h-full">
           {/* Matches List */}
-          <div className={`border-r h-full ${selectedMatch || selectedAdminMessage ? 'hidden md:block' : 'block'}`}>
-            <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Messages</h2>
+          <div className={`border-r dark:border-gray-700 h-full ${selectedMatch || selectedAdminMessage ? 'hidden md:block' : 'block'}`}>
+            <div className="p-4 border-b dark:border-gray-700 flex-shrink-0 flex items-center justify-between bg-white dark:bg-gray-900">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Messages</h2>
               {/* Admin Notification Bell - Desktop Only */}
               {adminMessages.length > 0 && (
                 <div className="relative hidden md:block">
@@ -717,8 +717,8 @@ export default function MessagesPage() {
 
                   {/* Admin Notifications Dropdown */}
                   {showAdminNotifications && (
-                    <div className="absolute right-0 top-12 w-80 bg-white border shadow-lg rounded-lg z-50 max-h-96 overflow-y-auto">
-                      <div className="p-3 bg-blue-50 border-b font-semibold text-sm text-blue-900 sticky top-0">
+                    <div className="absolute right-0 top-12 w-80 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-lg rounded-lg z-50 max-h-96 overflow-y-auto">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/30 border-b dark:border-gray-700 font-semibold text-sm text-blue-900 dark:text-blue-100 sticky top-0">
                         System Messages
                       </div>
                       {adminMessages.map((msg) => (
@@ -730,8 +730,8 @@ export default function MessagesPage() {
                             loadAdminConversation();
                             setShowAdminNotifications(false);
                           }}
-                          className={`p-3 border-b cursor-pointer hover:bg-blue-50 ${
-                            !msg.is_read ? "bg-blue-50/50" : ""
+                          className={`p-3 border-b dark:border-gray-700 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 ${
+                            !msg.is_read ? "bg-blue-50/50 dark:bg-blue-900/30" : ""
                           }`}
                         >
                           <div className="flex items-start gap-3">
@@ -741,18 +741,18 @@ export default function MessagesPage() {
                               className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-blue-900 truncate">
+                              <div className="text-sm font-medium text-blue-900 dark:text-blue-100 truncate">
                                 {msg.sender?.full_name || "System Message"}
                               </div>
-                              <div className="text-xs text-gray-600 truncate">
+                              <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
                                 {msg.content.substring(0, 50)}...
                               </div>
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 {format(new Date(msg.created_at), "MMM d, h:mm a")}
                               </div>
                             </div>
                             {!msg.is_read && (
-                              <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                              <div className="w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full flex-shrink-0 mt-2"></div>
                             )}
                           </div>
                         </div>
@@ -762,7 +762,7 @@ export default function MessagesPage() {
                 </div>
               )}
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
 
               {/* User Matches */}
               {matches.map((match) => {
@@ -777,8 +777,8 @@ export default function MessagesPage() {
                       setSelectedMatch(match);
                       setSelectedAdminMessage(null);
                     }}
-                    className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
-                      selectedMatch?.id === match.id ? "bg-gray-50" : ""
+                    className={`p-4 border-b dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                      selectedMatch?.id === match.id ? "bg-gray-50 dark:bg-gray-800" : ""
                     }`}
                   >
                     <div className="flex items-center space-x-3">
@@ -794,7 +794,7 @@ export default function MessagesPage() {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-medium">{match.profile.full_name}</h3>
+                          <h3 className="font-medium text-gray-900 dark:text-white">{match.profile.full_name}</h3>
                           {(match.unreadCount ?? 0) > 0 && (
                             <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center flex-shrink-0">
                               {(match.unreadCount ?? 0) > 99 ? '99+' : match.unreadCount}
@@ -818,19 +818,19 @@ export default function MessagesPage() {
           {/* Chat Area */}
           <div className={`col-span-1 md:col-span-2 h-full flex-col overflow-hidden ${selectedMatch || selectedAdminMessage ? 'flex' : 'hidden md:flex'}`}>
             {/* Mobile Header with Bell Icon */}
-            <div className="md:hidden p-4 border-b flex items-center justify-between bg-white">
+            <div className="md:hidden p-4 border-b dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-900">
               {(selectedMatch || selectedAdminMessage) && (
                 <button
                   onClick={() => {
                     setSelectedMatch(null);
                     setSelectedAdminMessage(null);
                   }}
-                  className="mr-2"
+                  className="mr-2 text-gray-900 dark:text-white"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
               )}
-              <h2 className="text-xl font-semibold">Messages</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Messages</h2>
               {adminMessages.length > 0 && (
                 <div className="relative md:hidden">
                   <button
@@ -845,8 +845,8 @@ export default function MessagesPage() {
 
                   {/* Admin Notifications Dropdown - Mobile */}
                   {showAdminNotifications && (
-                    <div className="absolute right-0 top-12 w-80 bg-white border shadow-lg rounded-lg z-50 max-h-96 overflow-y-auto">
-                      <div className="p-3 bg-blue-50 border-b font-semibold text-sm text-blue-900 sticky top-0">
+                    <div className="absolute right-0 top-12 w-80 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-lg rounded-lg z-50 max-h-96 overflow-y-auto">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/30 border-b dark:border-gray-700 font-semibold text-sm text-blue-900 dark:text-blue-100 sticky top-0">
                         System Messages
                       </div>
                       {adminMessages.map((msg) => (
@@ -858,8 +858,8 @@ export default function MessagesPage() {
                             loadAdminConversation();
                             setShowAdminNotifications(false);
                           }}
-                          className={`p-3 border-b cursor-pointer hover:bg-blue-50 ${
-                            !msg.is_read ? "bg-blue-50/50" : ""
+                          className={`p-3 border-b dark:border-gray-700 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 ${
+                            !msg.is_read ? "bg-blue-50/50 dark:bg-blue-900/30" : ""
                           }`}
                         >
                           <div className="flex items-start gap-3">
@@ -869,18 +869,18 @@ export default function MessagesPage() {
                               className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-blue-900 truncate">
+                              <div className="text-sm font-medium text-blue-900 dark:text-blue-100 truncate">
                                 {msg.sender?.full_name || "System Message"}
                               </div>
-                              <div className="text-xs text-gray-600 truncate">
+                              <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
                                 {msg.content.substring(0, 50)}...
                               </div>
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 {format(new Date(msg.created_at), "MMM d, h:mm a")}
                               </div>
                             </div>
                             {!msg.is_read && (
-                              <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                              <div className="w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full flex-shrink-0 mt-2"></div>
                             )}
                           </div>
                         </div>
@@ -996,7 +996,7 @@ export default function MessagesPage() {
             ) : selectedMatch ? (
               <>
                 {/* Chat Header */}
-                <div className="p-4 border-b flex-shrink-0">
+                <div className="p-4 border-b dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="relative">
@@ -1021,10 +1021,10 @@ export default function MessagesPage() {
                         }`}></div>
                       </div>
                       <div>
-                        <h3 className="font-medium cursor-pointer hover:text-pink-600" onClick={handleViewProfile}>
+                        <h3 className="font-medium text-gray-900 dark:text-white cursor-pointer hover:text-pink-600 dark:hover:text-pink-400" onClick={handleViewProfile}>
                           {selectedMatch.profile.full_name}
                         </h3>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {selectedMatch.profile.bio?.slice(0, 50)}
                           {(selectedMatch.profile.bio?.length || 0) > 50
                             ? "..."
@@ -1077,7 +1077,7 @@ export default function MessagesPage() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
                   {messages.map((message) => (
                     <div
                       key={message.id}
@@ -1091,7 +1091,7 @@ export default function MessagesPage() {
                         className={`max-w-xs px-4 py-2 rounded-2xl ${
                           message.sender_id === user?.id
                             ? "bg-primary text-white ml-auto rounded-br-md"
-                            : "bg-gray-100 text-gray-800 rounded-bl-md"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-bl-md"
                         }`}
                       >
                         {(message as any).image_url && (
@@ -1169,7 +1169,7 @@ export default function MessagesPage() {
                 )}
 
                 {/* Message Input */}
-                <div className="p-4 border-t flex-shrink-0">
+                <div className="p-4 border-t dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900">
                   {imagePreview && (
                     <div className="mb-3 relative inline-block">
                       <img
@@ -1198,12 +1198,12 @@ export default function MessagesPage() {
 
                   {/* GIF Picker */}
                   {showGifPicker && (
-                    <div className="absolute bottom-20 left-4 z-50 bg-white rounded-lg shadow-xl">
-                      <div className="p-2 border-b flex items-center justify-between">
-                        <h3 className="font-semibold text-sm">Search GIFs</h3>
+                    <div className="absolute bottom-20 left-4 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+                      <div className="p-2 border-b dark:border-gray-700 flex items-center justify-between">
+                        <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Search GIFs</h3>
                         <button
                           onClick={() => setShowGifPicker(false)}
-                          className="text-gray-500 hover:text-gray-700"
+                          className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -1284,16 +1284,16 @@ export default function MessagesPage() {
                 {/* Report Dialog */}
                 {showReportDialog && (
                   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-                      <h3 className="text-xl font-bold mb-4">Report User</h3>
-                      <p className="text-gray-600 mb-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
+                      <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Report User</h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-4">
                         Please describe why you're reporting this user. Our team will review your report.
                       </p>
                       <textarea
                         value={reportReason}
                         onChange={(e) => setReportReason(e.target.value)}
                         placeholder="Describe the issue..."
-                        className="w-full border rounded-lg p-3 mb-4 min-h-[100px]"
+                        className="w-full border dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-lg p-3 mb-4 min-h-[100px]"
                         maxLength={500}
                       />
                       <div className="flex space-x-3">
@@ -1319,12 +1319,12 @@ export default function MessagesPage() {
                 )}
               </>
             ) : (
-              <div className="h-full flex items-center justify-center">
+              <div className="h-full flex items-center justify-center bg-white dark:bg-gray-900">
                 <div className="text-center">
-                  <h3 className="text-xl font-medium text-gray-600">
+                  <h3 className="text-xl font-medium text-gray-600 dark:text-gray-400">
                     Select a conversation
                   </h3>
-                  <p className="text-gray-500 mt-1">
+                  <p className="text-gray-500 dark:text-gray-500 mt-1">
                     Choose from your matches to start chatting
                   </p>
                 </div>
