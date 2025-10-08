@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Request user's top artists and tracks
-  const scope = 'user-top-read user-read-email';
+  // Request user's top artists, tracks, and streaming permissions
+  const scope = 'user-top-read user-read-email streaming user-read-private user-read-playback-state user-modify-playback-state';
   const state = userId; // Pass userId in state to retrieve after callback
 
   const params = new URLSearchParams({

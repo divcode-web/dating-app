@@ -4,7 +4,6 @@ import './globals.css'
 import { Providers } from '@/components/providers'
 import { Navigation } from '@/components/navigation'
 import { Toaster } from 'react-hot-toast'
-import { CacheCleaner } from '@/components/cache-cleaner'
 import { PWAUpdatePrompt } from '@/components/pwa-update-prompt'
 import { CookieConsent } from '@/components/cookie-consent'
 
@@ -62,7 +61,6 @@ export default function RootLayout({
         }} />
       </head>
       <body className={`${inter.className} min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-gray-900`}>
-        <CacheCleaner />
         <PWAUpdatePrompt />
         <CookieConsent />
         <Providers>

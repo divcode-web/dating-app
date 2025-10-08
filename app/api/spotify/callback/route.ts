@@ -54,6 +54,11 @@ export async function GET(request: NextRequest) {
 
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
+    const refreshToken = tokenData.refresh_token;
+    const expiresIn = tokenData.expires_in; // seconds
+
+    // Calculate expiration time
+    const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
     // Get user's top artists
     const artistsResponse = await fetch(
@@ -97,13 +102,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Save to database
+    // Save to database with tokens
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { error: updateError } = await supabase
       .from('user_profiles')
       .update({
         spotify_top_artists: topArtists,
         spotify_anthem: anthem,
+        spotify_access_token: accessToken,
+        spotify_refresh_token: refreshToken,
+        spotify_token_expires_at: expiresAt.toISOString(),
       })
       .eq('id', userId);
 
