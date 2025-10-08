@@ -3,7 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { updateUserProfile, uploadPhoto, getUserProfile } from "@/lib/api";
 import { useAuth } from "./auth-provider";
 import { UserProfile } from "@/lib/types";
@@ -11,9 +17,24 @@ import { Upload, X, Search, Music } from "lucide-react";
 import toast from "react-hot-toast";
 
 const SUGGESTED_INTERESTS = [
-  "Travel", "Coffee", "Fitness", "Music", "Foodie", "Movies",
-  "Hiking", "Photography", "Gaming", "Reading", "Yoga", "Cooking",
-  "Art", "Dancing", "Sports", "Fashion", "Tech", "Nature"
+  "Travel",
+  "Coffee",
+  "Fitness",
+  "Music",
+  "Foodie",
+  "Movies",
+  "Hiking",
+  "Photography",
+  "Gaming",
+  "Reading",
+  "Yoga",
+  "Cooking",
+  "Art",
+  "Dancing",
+  "Sports",
+  "Fashion",
+  "Tech",
+  "Nature",
 ];
 
 interface ProfileFormProps {
@@ -71,18 +92,33 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
     loadProfile();
 
     // Check for Spotify callback success/error
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('spotify_success') === 'true') {
-        toast.success('Spotify connected successfully! 🎵');
+      if (params.get("spotify_success") === "true") {
+        toast.success("Spotify connected successfully! 🎵");
         // Remove query param
-        window.history.replaceState({}, '', window.location.pathname);
+        window.history.replaceState({}, "", window.location.pathname);
         // Reload profile to show Spotify data
         loadProfile();
-      } else if (params.get('spotify_error')) {
-        const error = params.get('spotify_error');
-        toast.error(`Spotify connection failed: ${error}`);
-        window.history.replaceState({}, '', window.location.pathname);
+      } else if (params.get("spotify_error")) {
+        const error = params.get("spotify_error");
+        console.error("Spotify error details:", error);
+
+        // Provide user-friendly error messages
+        let userMessage = "Spotify connection failed";
+        if (error?.includes("Token exchange failed")) {
+          userMessage = "Failed to connect to Spotify. Please try again.";
+        } else if (error?.includes("Artists fetch failed")) {
+          userMessage =
+            "Connected to Spotify but failed to get your music data. Please try reconnecting.";
+        } else if (error?.includes("Missing access token")) {
+          userMessage = "Spotify authorization failed. Please try again.";
+        } else if (error) {
+          userMessage = `Spotify connection failed: ${decodeURIComponent(error)}`;
+        }
+
+        toast.error(userMessage);
+        window.history.replaceState({}, "", window.location.pathname);
       }
     }
   }, [user?.id]);
@@ -97,7 +133,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
       return;
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast.error("Please select a JPEG, PNG, or WebP image");
       return;
@@ -123,24 +159,28 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
       toast.dismiss(loadingToast);
       toast.success("Photo uploaded successfully!");
     } catch (error: any) {
-      console.error('Photo upload error:', error);
+      console.error("Photo upload error:", error);
 
       let errorMessage = "Failed to upload photo";
 
-      if (error.message?.includes('Storage bucket')) {
+      if (error.message?.includes("Storage bucket")) {
         errorMessage = "Storage not configured. Please contact support.";
-      } else if (error.message?.includes('File size')) {
+      } else if (error.message?.includes("File size")) {
         errorMessage = error.message;
-      } else if (error.message?.includes('format')) {
+      } else if (error.message?.includes("format")) {
         errorMessage = error.message;
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        errorMessage = "Network error. Please check your connection and try again.";
+      } else if (
+        error.message?.includes("network") ||
+        error.message?.includes("fetch")
+      ) {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
       }
 
       toast.error(errorMessage);
     } finally {
       setLoading(false);
-      e.target.value = '';
+      e.target.value = "";
     }
   };
 
@@ -153,16 +193,18 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
 
       // AI Moderation check for bio (Phase 3)
       if (profile.bio && profile.bio.trim()) {
-        const moderationResponse = await fetch('/api/moderate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: profile.bio, type: 'bio' }),
+        const moderationResponse = await fetch("/api/moderate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: profile.bio, type: "bio" }),
         });
 
         const moderationResult = await moderationResponse.json();
 
         if (!moderationResult.allowed) {
-          toast.error(`Bio contains inappropriate content: ${moderationResult.reason || 'Please revise your bio'}`);
+          toast.error(
+            `Bio contains inappropriate content: ${moderationResult.reason || "Please revise your bio"}`
+          );
           setLoading(false);
           return;
         }
@@ -212,7 +254,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
 
   const handleSpotifyConnect = () => {
     if (!user?.id) {
-      toast.error('Please log in first');
+      toast.error("Please log in first");
       return;
     }
 
@@ -232,13 +274,13 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
         `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`
       );
 
-      if (!response.ok) throw new Error('Failed to search books');
+      if (!response.ok) throw new Error("Failed to search books");
 
       const data = await response.json();
       setBookResults(data.items || []);
     } catch (error) {
-      console.error('Error searching books:', error);
-      toast.error('Failed to search books');
+      console.error("Error searching books:", error);
+      toast.error("Failed to search books");
     } finally {
       setSearchingBooks(false);
     }
@@ -247,18 +289,18 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
   const addBook = (book: any) => {
     const bookInfo = {
       title: book.volumeInfo.title,
-      author: book.volumeInfo.authors?.[0] || 'Unknown',
+      author: book.volumeInfo.authors?.[0] || "Unknown",
       cover_url: book.volumeInfo.imageLinks?.thumbnail || null,
     };
 
     const currentBooks = profile.favorite_books || [];
     if (currentBooks.length >= 5) {
-      toast.error('Maximum 5 books allowed');
+      toast.error("Maximum 5 books allowed");
       return;
     }
 
     if (currentBooks.some((b: any) => b.title === bookInfo.title)) {
-      toast.error('Book already added');
+      toast.error("Book already added");
       return;
     }
 
@@ -267,9 +309,9 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
       favorite_books: [...currentBooks, bookInfo],
     }));
 
-    setBookSearch('');
+    setBookSearch("");
     setBookResults([]);
-    toast.success('Book added!');
+    toast.success("Book added!");
   };
 
   const removeBook = (index: number) => {
@@ -279,7 +321,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
       ...prev,
       favorite_books: currentBooks,
     }));
-    toast.success('Book removed');
+    toast.success("Book removed");
   };
 
   const addInterest = (interest: string) => {
@@ -305,7 +347,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
   const toggleLookingFor = (value: string) => {
     const current = profile.looking_for || [];
     const updated = current.includes(value)
-      ? current.filter(v => v !== value)
+      ? current.filter((v) => v !== value)
       : [...current, value];
     setProfile((prev) => ({ ...prev, looking_for: updated }));
   };
@@ -345,7 +387,10 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
               type="date"
               value={profile.date_of_birth || ""}
               onChange={(e) =>
-                setProfile((prev) => ({ ...prev, date_of_birth: e.target.value }))
+                setProfile((prev) => ({
+                  ...prev,
+                  date_of_birth: e.target.value,
+                }))
               }
               required
             />
@@ -390,7 +435,10 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
               type="number"
               value={profile.height || ""}
               onChange={(e) =>
-                setProfile((prev) => ({ ...prev, height: parseInt(e.target.value) || undefined }))
+                setProfile((prev) => ({
+                  ...prev,
+                  height: parseInt(e.target.value) || undefined,
+                }))
               }
               placeholder="175"
             />
@@ -402,7 +450,10 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
               id="location"
               value={profile.location_city || ""}
               onChange={(e) =>
-                setProfile((prev) => ({ ...prev, location_city: e.target.value }))
+                setProfile((prev) => ({
+                  ...prev,
+                  location_city: e.target.value,
+                }))
               }
               placeholder="City, Country"
             />
@@ -425,7 +476,9 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
             placeholder="Tell us about yourself..."
             maxLength={500}
           />
-          <p className="text-xs text-gray-500 text-right">{(profile.bio || "").length}/500</p>
+          <p className="text-xs text-gray-500 text-right">
+            {(profile.bio || "").length}/500
+          </p>
         </div>
       </div>
 
@@ -434,7 +487,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900">Photos</h2>
           <span className="text-sm text-gray-500">
-            {(profile.photos?.length || 0)}/4 photos
+            {profile.photos?.length || 0}/4 photos
           </span>
         </div>
 
@@ -614,7 +667,10 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
             <Input
               value={interestInput}
               onChange={(e) => setInterestInput(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addInterest(interestInput))}
+              onKeyPress={(e) =>
+                e.key === "Enter" &&
+                (e.preventDefault(), addInterest(interestInput))
+              }
               placeholder="Add custom interest..."
             />
             <Button type="button" onClick={() => addInterest(interestInput)}>
@@ -649,7 +705,10 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
             onChange={(e) =>
               setProfile((prev) => ({
                 ...prev,
-                languages: e.target.value.split(",").map((i) => i.trim()).filter(Boolean),
+                languages: e.target.value
+                  .split(",")
+                  .map((i) => i.trim())
+                  .filter(Boolean),
               }))
             }
             placeholder="English, Spanish, French..."
@@ -659,7 +718,9 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
 
       {/* Relationship Preferences */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-gray-900">What I'm Looking For</h2>
+        <h2 className="text-xl font-bold text-gray-900">
+          What I'm Looking For
+        </h2>
 
         <div className="space-y-4">
           <div className="space-y-2">
@@ -677,7 +738,9 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                 <SelectItem value="long-term">Long-term partner</SelectItem>
                 <SelectItem value="casual">Short-term fun</SelectItem>
                 <SelectItem value="friendship">Friends</SelectItem>
-                <SelectItem value="figuring-out">Still figuring it out</SelectItem>
+                <SelectItem value="figuring-out">
+                  Still figuring it out
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -685,20 +748,22 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
           <div className="space-y-2">
             <Label>I'm interested in</Label>
             <div className="grid grid-cols-2 gap-3">
-              {["Friendship", "Dating", "Relationship", "Networking"].map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => toggleLookingFor(option.toLowerCase())}
-                  className={`p-3 rounded-lg border-2 transition text-left ${
-                    profile.looking_for?.includes(option.toLowerCase())
-                      ? "border-pink-500 bg-pink-50"
-                      : "border-gray-200 hover:border-pink-300"
-                  }`}
-                >
-                  <span className="font-medium">{option}</span>
-                </button>
-              ))}
+              {["Friendship", "Dating", "Relationship", "Networking"].map(
+                (option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => toggleLookingFor(option.toLowerCase())}
+                    className={`p-3 rounded-lg border-2 transition text-left ${
+                      profile.looking_for?.includes(option.toLowerCase())
+                        ? "border-pink-500 bg-pink-50"
+                        : "border-gray-200 hover:border-pink-300"
+                    }`}
+                  >
+                    <span className="font-medium">{option}</span>
+                  </button>
+                )
+              )}
             </div>
           </div>
         </div>
@@ -720,7 +785,9 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
               }
               className="w-4 h-4 text-pink-600 rounded"
             />
-            <Label htmlFor="has_pets" className="cursor-pointer">I have pets</Label>
+            <Label htmlFor="has_pets" className="cursor-pointer">
+              I have pets
+            </Label>
           </div>
 
           <div className="space-y-2">
@@ -753,7 +820,9 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                 <Music className="w-5 h-5 text-green-600" />
                 Spotify Integration
               </h3>
-              <p className="text-sm text-gray-600">Connect your Spotify to show your music taste</p>
+              <p className="text-sm text-gray-600">
+                Connect your Spotify to show your music taste
+              </p>
             </div>
             <Button
               type="button"
@@ -761,52 +830,67 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
               onClick={handleSpotifyConnect}
               className="border-green-300 text-green-700 hover:bg-green-100"
             >
-              {profile.spotify_top_artists ? 'Reconnect' : 'Connect Spotify'}
+              {profile.spotify_top_artists ? "Reconnect" : "Connect Spotify"}
             </Button>
           </div>
 
           {/* Show connected Spotify data */}
-          {profile.spotify_top_artists && profile.spotify_top_artists.length > 0 && (
-            <div className="mt-3 p-3 bg-white rounded-lg">
-              <p className="text-xs font-semibold text-gray-600 mb-2">TOP ARTISTS</p>
-              <div className="flex flex-wrap gap-2">
-                {profile.spotify_top_artists.map((artist: string, index: number) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
-                  >
-                    {artist}
-                  </span>
-                ))}
-              </div>
+          {profile.spotify_top_artists &&
+            profile.spotify_top_artists.length > 0 && (
+              <div className="mt-3 p-3 bg-white rounded-lg">
+                <p className="text-xs font-semibold text-gray-600 mb-2">
+                  TOP ARTISTS
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {profile.spotify_top_artists.map(
+                    (artist: string, index: number) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
+                      >
+                        {artist}
+                      </span>
+                    )
+                  )}
+                </div>
 
-              {profile.spotify_anthem && (
-                <div className="mt-3 pt-3 border-t">
-                  <p className="text-xs font-semibold text-gray-600 mb-2">YOUR ANTHEM 🎵</p>
-                  <div className="flex items-center gap-3">
-                    {profile.spotify_anthem.album_image && (
-                      <img
-                        src={profile.spotify_anthem.album_image}
-                        alt="Album"
-                        className="w-12 h-12 rounded"
-                      />
-                    )}
-                    <div>
-                      <p className="font-medium text-sm">{profile.spotify_anthem.track_name}</p>
-                      <p className="text-xs text-gray-600">{profile.spotify_anthem.artist_name}</p>
+                {profile.spotify_anthem && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs font-semibold text-gray-600 mb-2">
+                      YOUR ANTHEM 🎵
+                    </p>
+                    <div className="flex items-center gap-3">
+                      {profile.spotify_anthem.album_image && (
+                        <img
+                          src={profile.spotify_anthem.album_image}
+                          alt="Album"
+                          className="w-12 h-12 rounded"
+                        />
+                      )}
+                      <div>
+                        <p className="font-medium text-sm">
+                          {profile.spotify_anthem.track_name}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {profile.spotify_anthem.artist_name}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
         </div>
 
         {/* Favorite Books - Google Books Integration */}
         <div className="space-y-3">
           <div>
-            <h3 className="font-semibold text-gray-900 mb-2">📚 Favorite Books (Max 5)</h3>
-            <p className="text-sm text-gray-600 mb-3">Search and add your favorite books</p>
+            <h3 className="font-semibold text-gray-900 mb-2">
+              📚 Favorite Books (Max 5)
+            </h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Search and add your favorite books
+            </p>
 
             {/* Current Books */}
             {profile.favorite_books && profile.favorite_books.length > 0 && (
@@ -833,7 +917,9 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                     >
                       <X className="w-3 h-3" />
                     </button>
-                    <p className="text-xs mt-1 text-center truncate">{book.title}</p>
+                    <p className="text-xs mt-1 text-center truncate">
+                      {book.title}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -886,9 +972,11 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{book.volumeInfo.title}</p>
+                        <p className="font-medium text-sm truncate">
+                          {book.volumeInfo.title}
+                        </p>
                         <p className="text-xs text-gray-600 truncate">
-                          {book.volumeInfo.authors?.[0] || 'Unknown Author'}
+                          {book.volumeInfo.authors?.[0] || "Unknown Author"}
                         </p>
                       </div>
                     </button>
@@ -900,7 +988,11 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
         </div>
       </div>
 
-      <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700">
+      <Button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+      >
         {loading ? "Saving..." : "Save Profile"}
       </Button>
     </form>

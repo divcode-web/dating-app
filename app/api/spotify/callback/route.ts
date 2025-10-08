@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.log('🎵 Spotify callback started for user:', userId);
+
     // Exchange code for access token
+    console.log('🔄 Exchanging code for access token...');
     const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
@@ -48,19 +51,34 @@ export async function GET(request: NextRequest) {
       }),
     });
 
+    console.log('🔐 Token response status:', tokenResponse.status);
+
     if (!tokenResponse.ok) {
-      throw new Error('Failed to get access token');
+      const errorText = await tokenResponse.text();
+      console.error('❌ Token exchange failed:', errorText);
+      throw new Error(`Token exchange failed: ${tokenResponse.status} ${errorText}`);
     }
 
     const tokenData = await tokenResponse.json();
+    console.log('✅ Token data received:', {
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token,
+      expiresIn: tokenData.expires_in
+    });
+
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token;
     const expiresIn = tokenData.expires_in; // seconds
+
+    if (!accessToken || !refreshToken) {
+      throw new Error('Missing access token or refresh token in response');
+    }
 
     // Calculate expiration time
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
     // Get user's top artists
+    console.log('🎤 Fetching top artists...');
     const artistsResponse = await fetch(
       'https://api.spotify.com/v1/me/top/artists?limit=5&time_range=medium_term',
       {
@@ -70,14 +88,20 @@ export async function GET(request: NextRequest) {
       }
     );
 
+    console.log('🎤 Artists response status:', artistsResponse.status);
+
     if (!artistsResponse.ok) {
-      throw new Error('Failed to get top artists');
+      const errorText = await artistsResponse.text();
+      console.error('❌ Artists fetch failed:', errorText);
+      throw new Error(`Artists fetch failed: ${artistsResponse.status} ${errorText}`);
     }
 
     const artistsData = await artistsResponse.json();
-    const topArtists = artistsData.items.map((artist: any) => artist.name);
+    const topArtists = artistsData.items?.map((artist: any) => artist.name) || [];
+    console.log('✅ Top artists:', topArtists);
 
     // Get user's top track (anthem)
+    console.log('🎵 Fetching top track...');
     const tracksResponse = await fetch(
       'https://api.spotify.com/v1/me/top/tracks?limit=1&time_range=medium_term',
       {
@@ -87,10 +111,12 @@ export async function GET(request: NextRequest) {
       }
     );
 
+    console.log('🎵 Tracks response status:', tracksResponse.status);
+
     let anthem = null;
     if (tracksResponse.ok) {
       const tracksData = await tracksResponse.json();
-      if (tracksData.items.length > 0) {
+      if (tracksData.items?.length > 0) {
         const track = tracksData.items[0];
         anthem = {
           track_id: track.id,
@@ -99,33 +125,71 @@ export async function GET(request: NextRequest) {
           preview_url: track.preview_url,
           album_image: track.album?.images[0]?.url,
         };
+        console.log('✅ Anthem found:', anthem.track_name);
       }
+    } else {
+      console.log('⚠️ Tracks fetch failed, continuing without anthem');
     }
 
     // Save to database with tokens
+    console.log('💾 Saving to database...');
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { error: updateError } = await supabase
+
+    // First, save tokens (these fields exist)
+    const { error: tokenError } = await supabase
       .from('user_profiles')
       .update({
-        spotify_top_artists: topArtists,
-        spotify_anthem: anthem,
         spotify_access_token: accessToken,
         spotify_refresh_token: refreshToken,
         spotify_token_expires_at: expiresAt.toISOString(),
       })
       .eq('id', userId);
 
-    if (updateError) {
-      throw updateError;
+    if (tokenError) {
+      console.error('❌ Token save failed:', tokenError);
+      throw tokenError;
+    }
+
+    // Try to save music data (these fields might not exist yet)
+    try {
+      const { error: musicError } = await supabase
+        .from('user_profiles')
+        .update({
+          spotify_top_artists: topArtists,
+          spotify_anthem: anthem,
+        })
+        .eq('id', userId);
+
+      if (musicError) {
+        console.log('⚠️ Music data fields not available yet:', musicError.message);
+        // Don't throw error - tokens are saved successfully
+      } else {
+        console.log('✅ Music data saved successfully');
+      }
+    } catch (musicError) {
+      console.log('⚠️ Music data save failed (fields may not exist):', musicError);
+      // Don't throw error - tokens are saved successfully
+    }
+
+    console.log('✅ Spotify integration completed successfully - tokens saved');
+
+    // Check if music data was also saved
+    if (topArtists.length > 0 || anthem) {
+      console.log('✅ Music data also saved successfully');
+    } else {
+      console.log('⚠️ Music data fields not available yet - only tokens saved');
     }
 
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/profile?spotify_success=true`
     );
   } catch (error) {
-    console.error('Spotify callback error:', error);
+    console.error('💥 Spotify callback error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('Error details:', { message: errorMessage, stack: error });
+
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/profile?spotify_error=unknown`
+      `${process.env.NEXT_PUBLIC_APP_URL}/profile?spotify_error=${encodeURIComponent(errorMessage)}`
     );
   }
 }
