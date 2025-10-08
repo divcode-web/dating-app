@@ -22,9 +22,55 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Use the stored function to get match stories efficiently
-    const { data: stories, error: storiesError } = await supabase
-      .rpc('get_match_stories', { p_user_id: user.id });
+    // Get all matches for this user
+    const { data: matches, error: matchesError } = await supabase
+      .from('matches')
+      .select('user_id_1, user_id_2')
+      .or(`user_id_1.eq.${user.id},user_id_2.eq.${user.id}`);
+
+    if (matchesError) {
+      console.error('Error fetching matches:', matchesError);
+      return NextResponse.json(
+        { error: 'Failed to fetch matches' },
+        { status: 500 }
+      );
+    }
+
+    // Get list of matched user IDs
+    const matchedUserIds = matches?.map(match =>
+      match.user_id_1 === user.id ? match.user_id_2 : match.user_id_1
+    ) || [];
+
+    if (matchedUserIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        stories: [],
+      });
+    }
+
+    // Get stories from matched users
+    const { data: storiesData, error: storiesError } = await supabase
+      .from('stories')
+      .select(`
+        id,
+        user_id,
+        media_url,
+        media_type,
+        thumbnail_url,
+        caption,
+        duration,
+        created_at,
+        expires_at,
+        user_profiles!user_id (
+          id,
+          full_name,
+          photos
+        )
+      `)
+      .in('user_id', matchedUserIds)
+      .eq('is_active', true)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false });
 
     if (storiesError) {
       console.error('Error fetching stories:', storiesError);
@@ -33,6 +79,44 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Get story views for current user
+    const storyIds = storiesData?.map(s => s.id) || [];
+    const { data: viewsData } = await supabase
+      .from('story_views')
+      .select('story_id')
+      .eq('viewer_id', user.id)
+      .in('story_id', storyIds);
+
+    const viewedStoryIds = new Set(viewsData?.map(v => v.story_id) || []);
+
+    // Get view counts for all stories
+    const { data: viewCounts } = await supabase
+      .from('story_views')
+      .select('story_id')
+      .in('story_id', storyIds);
+
+    const viewCountMap = viewCounts?.reduce((acc, v) => {
+      acc[v.story_id] = (acc[v.story_id] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>) || {};
+
+    // Format stories with view info
+    const stories = storiesData?.map((story: any) => ({
+      story_id: story.id,
+      user_id: story.user_id,
+      full_name: story.user_profiles?.full_name || 'Unknown',
+      profile_photo: story.user_profiles?.photos?.[0] || null,
+      media_url: story.media_url,
+      media_type: story.media_type,
+      thumbnail_url: story.thumbnail_url,
+      caption: story.caption,
+      duration: story.duration,
+      created_at: story.created_at,
+      expires_at: story.expires_at,
+      is_viewed: viewedStoryIds.has(story.id),
+      view_count: viewCountMap[story.id] || 0,
+    })) || [];
 
     // Group stories by user
     const storiesByUser: Record<string, any[]> = {};
