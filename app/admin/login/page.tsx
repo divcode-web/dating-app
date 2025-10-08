@@ -26,42 +26,57 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      // Sign in with Supabase
+      // console.log("🔐 Admin login attempt for:", email);
+
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // console.error("❌ Auth error:", authError);
+        throw authError;
+      }
 
-      // Check if user is an admin
+      // console.log("✅ Auth successful, user ID:", authData.user.id);
+
+      // console.log("🔍 Checking admin_users table...");
       const { data: adminData, error: adminError } = await supabase
         .from("admin_users")
         .select("*")
         .eq("id", authData.user.id)
         .maybeSingle();
 
+      // console.log("Admin check result:", { adminData, adminError });
+
       if (adminError) {
-        console.error("Error checking admin status:", adminError);
+        // console.error("❌ Error checking admin status:", adminError);
+
+        if (adminError.code === '42P01' || adminError.message?.includes('relation "admin_users" does not exist')) {
+          toast.error("Admin system not set up. Please create the admin_users table first.");
+          setLoading(false);
+          return;
+        }
+
         await supabase.auth.signOut();
         toast.error("Database error. Please contact support.");
+        setLoading(false);
         return;
       }
 
       if (!adminData) {
-        // Not an admin, sign them out
-        console.log("User not found in admin_users:", authData.user.email);
+        // console.log("❌ User not found in admin_users:", authData.user.email);
         await supabase.auth.signOut();
         toast.error("Access denied. You must be added as an admin first.");
+        setLoading(false);
         return;
       }
 
-      // Navigate immediately - auth-provider has delay to check pathname
-      router.push("/admin/dashboard");
+      // console.log("✅ Admin verified! Redirecting to dashboard...");
+      window.location.href = "/admin/dashboard";
     } catch (error: any) {
-      console.error("Login error:", error);
+      // console.error("❌ Login error:", error);
       toast.error(error.message || "Invalid credentials");
-    } finally {
       setLoading(false);
     }
   };

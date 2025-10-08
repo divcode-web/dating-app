@@ -74,8 +74,6 @@ export default function ProfilePage() {
         .eq("id", userId)
         .single();
 
-      console.log("🔍 PROFILE-PAGE DEBUG: Loaded profile data:", data);
-
       if (error) throw error;
       setProfileData(data);
 
@@ -265,6 +263,59 @@ export default function ProfilePage() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Spotify */}
+                {profileData.spotify_top_artists && profileData.spotify_top_artists.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-500 mb-2">🎵 Top Artists</p>
+                    <div className="flex flex-wrap gap-2">
+                      {profileData.spotify_top_artists.map((artist: string, i: number) => (
+                        <span
+                          key={i}
+                          className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
+                        >
+                          {artist}
+                        </span>
+                      ))}
+                    </div>
+                    {profileData.spotify_anthem && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg flex items-center gap-3">
+                        {profileData.spotify_anthem.album_image && (
+                          <img
+                            src={profileData.spotify_anthem.album_image}
+                            alt="Album"
+                            className="w-12 h-12 rounded"
+                          />
+                        )}
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">ANTHEM</p>
+                          <p className="font-medium text-sm">{profileData.spotify_anthem.track_name}</p>
+                          <p className="text-xs text-gray-600">{profileData.spotify_anthem.artist_name}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Favorite Books */}
+                {profileData.favorite_books && profileData.favorite_books.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-500 mb-2">📚 Favorite Books</p>
+                    <div className="flex flex-wrap gap-2">
+                      {profileData.favorite_books.map((book: any, i: number) => (
+                        <div key={i} className="flex items-center gap-2 bg-amber-50 p-2 rounded-lg">
+                          {book.cover && (
+                            <img src={book.cover} alt={book.title} className="w-8 h-12 object-cover rounded" />
+                          )}
+                          <div>
+                            <p className="text-xs font-medium">{book.title}</p>
+                            <p className="text-xs text-gray-600">{book.author}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -469,6 +520,59 @@ export default function ProfilePage() {
                               ))}
                             </div>
                           )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Spotify */}
+                    {profileData.spotify_top_artists && profileData.spotify_top_artists.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-500 mb-2">🎵 Top Artists</p>
+                        <div className="flex flex-wrap gap-2">
+                          {profileData.spotify_top_artists.map((artist: string, i: number) => (
+                            <span
+                              key={i}
+                              className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm"
+                            >
+                              {artist}
+                            </span>
+                          ))}
+                        </div>
+                        {profileData.spotify_anthem && (
+                          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg flex items-center gap-3">
+                            {profileData.spotify_anthem.album_image && (
+                              <img
+                                src={profileData.spotify_anthem.album_image}
+                                alt="Album"
+                                className="w-12 h-12 rounded"
+                              />
+                            )}
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">ANTHEM</p>
+                              <p className="font-medium text-sm">{profileData.spotify_anthem.track_name}</p>
+                              <p className="text-xs text-gray-600">{profileData.spotify_anthem.artist_name}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Favorite Books */}
+                    {profileData.favorite_books && profileData.favorite_books.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-500 mb-2">📚 Favorite Books</p>
+                        <div className="flex flex-wrap gap-2">
+                          {profileData.favorite_books.map((book: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg">
+                              {book.cover && (
+                                <img src={book.cover} alt={book.title} className="w-8 h-12 object-cover rounded" />
+                              )}
+                              <div>
+                                <p className="text-xs font-medium">{book.title}</p>
+                                <p className="text-xs text-gray-600">{book.author}</p>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}

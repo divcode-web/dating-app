@@ -130,12 +130,12 @@ export default function AdminMessagingPage() {
 
       if (formData.recipient === "all") {
         // Use the bulk message function
-        console.log("Sending bulk message:", {
-          admin_id_param: adminId,
-          subject_param: formData.subject,
-          content_param: formData.content,
-          message_type_param: formData.messageType,
-        });
+        // console.log("Sending bulk message:", {
+        //   admin_id_param: adminId,
+        //   subject_param: formData.subject,
+        //   content_param: formData.content,
+        //   message_type_param: formData.messageType,
+        // });
 
         const { data, error } = await supabase.rpc("send_bulk_message", {
           admin_id_param: adminId,
@@ -145,11 +145,11 @@ export default function AdminMessagingPage() {
         });
 
         if (error) {
-          console.error("Bulk message error:", error);
+          // console.error("Bulk message error:", error);
           throw error;
         }
 
-        console.log("Bulk message result:", { data, error });
+        // console.log("Bulk message result:", { data, error });
         toast.success(`Message sent to ${data || 0} users!`);
       } else {
         // Send to specific user
@@ -167,16 +167,16 @@ export default function AdminMessagingPage() {
         });
 
         if (error) {
-          console.error("Error inserting admin message:", error);
+          // console.error("Error inserting admin message:", error);
           throw error;
         }
 
-        console.log("Admin message inserted successfully:", {
-          admin_id: adminId,
-          recipient_id: formData.recipientId,
-          message_type: formData.messageType,
-          subject: formData.subject,
-        });
+        // console.log("Admin message inserted successfully:", {
+        //   admin_id: adminId,
+        //   recipient_id: formData.recipientId,
+        //   message_type: formData.messageType,
+        //   subject: formData.subject,
+        // });
 
         toast.success("Message sent!");
       }
@@ -190,7 +190,7 @@ export default function AdminMessagingPage() {
         content: "",
       });
     } catch (error: any) {
-      console.error("Error sending message:", error);
+      // console.error("Error sending message:", error);
       toast.error(error.message || "Failed to send message");
     } finally {
       setLoading(false);

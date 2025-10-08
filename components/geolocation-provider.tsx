@@ -50,39 +50,49 @@ export function GeolocationProvider({ children }: GeolocationProviderProps) {
     return false
   })
 
-  // Check if we already have location permission on mount
+  // Automatically get location using IP geolocation on mount
   // ONLY if user is logged in AND not on admin portal
   useEffect(() => {
-    // Don't request location if user is not logged in or still loading
-    if (!user || loading || hasCheckedPermission) {
+    // Don't get location if user is not logged in or still loading
+    if (!user || loading) {
       return
     }
 
-    // Don't request location for admin portal
+    // Don't get location for admin portal
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
       return
     }
 
-    // If user already denied or granted, don't show dialog again
+    // If user already denied or granted browser permission, honor that
     const savedPermission = localStorage.getItem('location-permission')
-    if (savedPermission === 'denied' || savedPermission === 'granted') {
-      setPermissionStatus(savedPermission as any)
-      setHasCheckedPermission(true)
-      sessionStorage.setItem('location-asked', 'true')
+    if (savedPermission === 'granted' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          })
+          setPermissionStatus('granted')
+          sessionStorage.setItem('location-asked', 'true')
+        },
+        () => {
+          setPermissionStatus('denied')
+          localStorage.setItem('location-permission', 'denied')
+          sessionStorage.setItem('location-asked', 'true')
+        },
+        { timeout: 10000 }
+      )
+      return
+    }
 
-      // If granted, try to get location
-      if (savedPermission === 'granted') {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setLocation({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            })
-          },
-          () => {},
-          { timeout: 10000 }
-        )
-      }
+    if (savedPermission === 'denied') {
+      setPermissionStatus('denied')
+      sessionStorage.setItem('location-asked', 'true')
+      return
+    }
+
+    // If we already asked in this session, don't ask again
+    if (hasCheckedPermission) {
       return
     }
 

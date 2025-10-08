@@ -11,8 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Match, Message, UserProfile } from "@/lib/types";
 import { getUserProfile, getMessages, sendMessage } from "@/lib/api";
 import { format } from "date-fns";
-import { Send, Image, MessageCircle, X, Flag, UserX, Eye, Bell, ArrowDown, ArrowLeft } from "lucide-react";
+import { Send, Image, MessageCircle, X, Flag, UserX, Eye, Bell, ArrowDown, ArrowLeft, Smile } from "lucide-react";
 import { encryptMessage, decryptMessage } from "@/lib/encryption";
+import dynamic from 'next/dynamic';
+
+// Dynamic imports for emoji and GIF pickers (client-side only)
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
+const GifPicker = dynamic(() => import('gif-picker-react'), { ssr: false });
 
 interface MatchWithProfile extends Match {
   profile: UserProfile;
@@ -71,6 +76,10 @@ export default function MessagesPage() {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [showIceBreakers, setShowIceBreakers] = useState(false);
+  const [iceBreakers, setIceBreakers] = useState<{id: string; question: string; category: string}[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const adminMessagesEndRef = useRef<HTMLDivElement>(null);
   const adminMessagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -322,7 +331,7 @@ export default function MessagesPage() {
             .from("messages")
             .select("*")
             .eq("match_id", match.id)
-            .order("created_at", { ascending: false })
+            .order("sent_at", { ascending: false })
             .limit(1)
             .single();
 
@@ -361,18 +370,15 @@ export default function MessagesPage() {
       // Mark unread messages as read (only messages from other user)
       if (messages && user?.id) {
         const unreadMessages = messages.filter(m => !m.read_at && m.sender_id !== user.id);
-        console.log(`Found ${unreadMessages.length} unread messages to mark as read`);
         if (unreadMessages.length > 0) {
           const unreadIds = unreadMessages.map(m => m.id);
-          const { data, error } = await supabase
+          const { error } = await supabase
             .from("messages")
             .update({ read_at: new Date().toISOString() })
             .in("id", unreadIds);
 
           if (error) {
             console.error("Error marking messages as read:", error);
-          } else {
-            console.log(`Successfully marked ${unreadMessages.length} messages as read`);
           }
         }
       }
@@ -391,6 +397,50 @@ export default function MessagesPage() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const loadIceBreakers = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_random_ice_breakers', { limit_count: 3 });
+      if (error) throw error;
+      setIceBreakers(data || []);
+      setShowIceBreakers(true);
+    } catch (error) {
+      console.error("Error loading ice breakers:", error);
+      // Fallback ice breakers if function doesn't exist yet
+      setIceBreakers([
+        { id: '1', question: "If you could travel anywhere tomorrow, where would you go?", category: 'travel' },
+        { id: '2', question: "What's your go-to karaoke song?", category: 'fun' },
+        { id: '3', question: "Coffee or tea? Defend your choice! ☕🍵", category: 'food' }
+      ]);
+      setShowIceBreakers(true);
+    }
+  };
+
+  const handleIceBreakerClick = async (question: string, questionId: string) => {
+    setNewMessage(question);
+    setShowIceBreakers(false);
+
+    // Increment usage count
+    try {
+      await supabase.rpc('increment_ice_breaker_usage', { question_id: questionId });
+    } catch (error) {
+      console.error("Error incrementing ice breaker usage:", error);
+    }
+  };
+
+  const handleEmojiSelect = (emojiObject: any) => {
+    setNewMessage(prev => prev + emojiObject.emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleGifSelect = (gif: any) => {
+    // Insert GIF URL into message
+    const gifUrl = gif.url || gif.preview_gif?.url || gif.media_formats?.gif?.url;
+    if (gifUrl) {
+      setNewMessage(prev => prev + ` ${gifUrl} `);
+    }
+    setShowGifPicker(false);
   };
 
   const handleSendMessage = async () => {
@@ -418,6 +468,24 @@ export default function MessagesPage() {
 
       // Encrypt message content (or use placeholder if only image)
       const messageContent = newMessage.trim() || "[Image]";
+
+      // AI Moderation check (Phase 3)
+      if (messageContent !== "[Image]") {
+        const moderationResponse = await fetch('/api/moderate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: messageContent, type: 'message' }),
+        });
+
+        const moderationResult = await moderationResponse.json();
+
+        if (!moderationResult.allowed) {
+          toast.error(`Message blocked: ${moderationResult.reason || 'Inappropriate content detected'}`);
+          setUploading(false);
+          return;
+        }
+      }
+
       const encrypted = await encryptMessage(messageContent);
 
       // Send message with optional image URL
@@ -1046,6 +1114,60 @@ export default function MessagesPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
+                {/* Ice Breaker Section */}
+                {messages.length === 0 && !showIceBreakers && (
+                  <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-t border-b">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">Need a conversation starter?</p>
+                        <p className="text-xs text-purple-700 dark:text-purple-300">Get fun questions to break the ice!</p>
+                      </div>
+                      <Button
+                        onClick={loadIceBreakers}
+                        size="sm"
+                        className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                      >
+                        Get Questions
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ice Breaker Questions Popup */}
+                {showIceBreakers && (
+                  <div className="p-4 border-t border-b bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-100">Pick a question to start:</h3>
+                      <button
+                        onClick={() => setShowIceBreakers(false)}
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {iceBreakers.map((breaker) => (
+                        <button
+                          key={breaker.id}
+                          onClick={() => handleIceBreakerClick(breaker.question, breaker.id)}
+                          className="w-full text-left p-3 rounded-lg bg-white dark:bg-gray-800 hover:bg-purple-100 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-700 transition-colors"
+                        >
+                          <p className="text-sm text-gray-800 dark:text-gray-200">{breaker.question}</p>
+                          <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
+                            {breaker.category}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={loadIceBreakers}
+                      className="mt-2 text-xs text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200 font-medium"
+                    >
+                      ↻ Get different questions
+                    </button>
+                  </div>
+                )}
+
                 {/* Message Input */}
                 <div className="p-4 border-t flex-shrink-0">
                   {imagePreview && (
@@ -1066,6 +1188,35 @@ export default function MessagesPage() {
                       </button>
                     </div>
                   )}
+
+                  {/* Emoji Picker */}
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-20 left-4 z-50">
+                      <EmojiPicker onEmojiClick={handleEmojiSelect} />
+                    </div>
+                  )}
+
+                  {/* GIF Picker */}
+                  {showGifPicker && (
+                    <div className="absolute bottom-20 left-4 z-50 bg-white rounded-lg shadow-xl">
+                      <div className="p-2 border-b flex items-center justify-between">
+                        <h3 className="font-semibold text-sm">Search GIFs</h3>
+                        <button
+                          onClick={() => setShowGifPicker(false)}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <GifPicker
+                        tenorApiKey={process.env.NEXT_PUBLIC_TENOR_API_KEY || "AIzaSyDhxw8zC0jVZsGP0y1rF7y3x0Y1rYqkLQc"}
+                        onGifClick={handleGifSelect}
+                        width={300}
+                        height={400}
+                      />
+                    </div>
+                  )}
+
                   <div className="flex space-x-2">
                     <input
                       type="file"
@@ -1082,6 +1233,30 @@ export default function MessagesPage() {
                       disabled={uploading}
                     >
                       <Image className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => {
+                        setShowEmojiPicker(!showEmojiPicker);
+                        setShowGifPicker(false);
+                      }}
+                      disabled={uploading}
+                    >
+                      <Smile className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => {
+                        setShowGifPicker(!showGifPicker);
+                        setShowEmojiPicker(false);
+                      }}
+                      disabled={uploading}
+                    >
+                      GIF
                     </Button>
                     <Input
                       value={newMessage}

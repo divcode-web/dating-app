@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { updateUserProfile, uploadPhoto, getUserProfile } from "@/lib/api";
 import { useAuth } from "./auth-provider";
 import { UserProfile } from "@/lib/types";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Search, Music } from "lucide-react";
 import toast from "react-hot-toast";
 
 const SUGGESTED_INTERESTS = [
@@ -46,6 +46,9 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
   });
 
   const [interestInput, setInterestInput] = useState("");
+  const [bookSearch, setBookSearch] = useState("");
+  const [bookResults, setBookResults] = useState<any[]>([]);
+  const [searchingBooks, setSearchingBooks] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -53,23 +56,35 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
 
       try {
         setLoadingProfile(true);
-        console.log("🔄 PROFILE-FORM DEBUG: Loading profile for user:", user.id);
 
         const data = await getUserProfile(user.id);
         if (data) {
-          console.log("✅ PROFILE-FORM DEBUG: Profile loaded:", data);
           setProfile(data);
-        } else {
-          console.log("⚠️ PROFILE-FORM DEBUG: No profile found for user:", user.id);
         }
       } catch (error) {
-        console.error("❌ PROFILE-FORM DEBUG: Error loading profile:", error);
+        console.error("Error loading profile:", error);
       } finally {
         setLoadingProfile(false);
       }
     };
 
     loadProfile();
+
+    // Check for Spotify callback success/error
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('spotify_success') === 'true') {
+        toast.success('Spotify connected successfully! 🎵');
+        // Remove query param
+        window.history.replaceState({}, '', window.location.pathname);
+        // Reload profile to show Spotify data
+        loadProfile();
+      } else if (params.get('spotify_error')) {
+        const error = params.get('spotify_error');
+        toast.error(`Spotify connection failed: ${error}`);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
   }, [user?.id]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,11 +150,25 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
 
     try {
       setLoading(true);
-      console.log("💾 PROFILE-FORM DEBUG: Submitting profile update:", profile);
+
+      // AI Moderation check for bio (Phase 3)
+      if (profile.bio && profile.bio.trim()) {
+        const moderationResponse = await fetch('/api/moderate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: profile.bio, type: 'bio' }),
+        });
+
+        const moderationResult = await moderationResponse.json();
+
+        if (!moderationResult.allowed) {
+          toast.error(`Bio contains inappropriate content: ${moderationResult.reason || 'Please revise your bio'}`);
+          setLoading(false);
+          return;
+        }
+      }
 
       await updateUserProfile(user.id, profile);
-
-      console.log("✅ PROFILE-FORM DEBUG: Profile updated, refreshing local state");
 
       // Refresh local profile state to reflect any server-side changes
       const updatedProfile = await getUserProfile(user.id);
@@ -151,11 +180,10 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
 
       // Call onSave callback to refresh parent component
       if (onSave) {
-        console.log("🔄 PROFILE-FORM DEBUG: Calling onSave callback");
         onSave();
       }
     } catch (error) {
-      console.error("❌ PROFILE-FORM DEBUG: Failed to update profile:", error);
+      console.error("Failed to update profile:", error);
       toast.error("Failed to update profile");
     } finally {
       setLoading(false);
@@ -180,6 +208,78 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
       toast.error("Failed to remove photo");
       console.error(error);
     }
+  };
+
+  const handleSpotifyConnect = () => {
+    if (!user?.id) {
+      toast.error('Please log in first');
+      return;
+    }
+
+    // Redirect to Spotify OAuth flow
+    window.location.href = `/api/spotify/auth?userId=${user.id}`;
+  };
+
+  const searchGoogleBooks = async (query: string) => {
+    if (!query.trim()) {
+      setBookResults([]);
+      return;
+    }
+
+    try {
+      setSearchingBooks(true);
+      const response = await fetch(
+        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`
+      );
+
+      if (!response.ok) throw new Error('Failed to search books');
+
+      const data = await response.json();
+      setBookResults(data.items || []);
+    } catch (error) {
+      console.error('Error searching books:', error);
+      toast.error('Failed to search books');
+    } finally {
+      setSearchingBooks(false);
+    }
+  };
+
+  const addBook = (book: any) => {
+    const bookInfo = {
+      title: book.volumeInfo.title,
+      author: book.volumeInfo.authors?.[0] || 'Unknown',
+      cover_url: book.volumeInfo.imageLinks?.thumbnail || null,
+    };
+
+    const currentBooks = profile.favorite_books || [];
+    if (currentBooks.length >= 5) {
+      toast.error('Maximum 5 books allowed');
+      return;
+    }
+
+    if (currentBooks.some((b: any) => b.title === bookInfo.title)) {
+      toast.error('Book already added');
+      return;
+    }
+
+    setProfile((prev) => ({
+      ...prev,
+      favorite_books: [...currentBooks, bookInfo],
+    }));
+
+    setBookSearch('');
+    setBookResults([]);
+    toast.success('Book added!');
+  };
+
+  const removeBook = (index: number) => {
+    const currentBooks = [...(profile.favorite_books || [])];
+    currentBooks.splice(index, 1);
+    setProfile((prev) => ({
+      ...prev,
+      favorite_books: currentBooks,
+    }));
+    toast.success('Book removed');
   };
 
   const addInterest = (interest: string) => {
@@ -599,6 +699,202 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                   <span className="font-medium">{option}</span>
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Profile Fields - Phase 1 */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-900">More About Me</h2>
+
+        {/* Pets */}
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="has_pets"
+              checked={profile.has_pets || false}
+              onChange={(e) =>
+                setProfile((prev) => ({ ...prev, has_pets: e.target.checked }))
+              }
+              className="w-4 h-4 text-pink-600 rounded"
+            />
+            <Label htmlFor="has_pets" className="cursor-pointer">I have pets</Label>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="pet_preference">Pet Preference</Label>
+            <Select
+              value={profile.pet_preference || ""}
+              onValueChange={(value) =>
+                setProfile((prev) => ({ ...prev, pet_preference: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select your pet preference" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dog_lover">Dog Lover 🐕</SelectItem>
+                <SelectItem value="cat_lover">Cat Lover 🐈</SelectItem>
+                <SelectItem value="both">Love Both 🐕🐈</SelectItem>
+                <SelectItem value="none">Not a Pet Person</SelectItem>
+                <SelectItem value="other">Other Animals</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Spotify Integration */}
+        <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Music className="w-5 h-5 text-green-600" />
+                Spotify Integration
+              </h3>
+              <p className="text-sm text-gray-600">Connect your Spotify to show your music taste</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSpotifyConnect}
+              className="border-green-300 text-green-700 hover:bg-green-100"
+            >
+              {profile.spotify_top_artists ? 'Reconnect' : 'Connect Spotify'}
+            </Button>
+          </div>
+
+          {/* Show connected Spotify data */}
+          {profile.spotify_top_artists && profile.spotify_top_artists.length > 0 && (
+            <div className="mt-3 p-3 bg-white rounded-lg">
+              <p className="text-xs font-semibold text-gray-600 mb-2">TOP ARTISTS</p>
+              <div className="flex flex-wrap gap-2">
+                {profile.spotify_top_artists.map((artist: string, index: number) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
+                  >
+                    {artist}
+                  </span>
+                ))}
+              </div>
+
+              {profile.spotify_anthem && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs font-semibold text-gray-600 mb-2">YOUR ANTHEM 🎵</p>
+                  <div className="flex items-center gap-3">
+                    {profile.spotify_anthem.album_image && (
+                      <img
+                        src={profile.spotify_anthem.album_image}
+                        alt="Album"
+                        className="w-12 h-12 rounded"
+                      />
+                    )}
+                    <div>
+                      <p className="font-medium text-sm">{profile.spotify_anthem.track_name}</p>
+                      <p className="text-xs text-gray-600">{profile.spotify_anthem.artist_name}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Favorite Books - Google Books Integration */}
+        <div className="space-y-3">
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-2">📚 Favorite Books (Max 5)</h3>
+            <p className="text-sm text-gray-600 mb-3">Search and add your favorite books</p>
+
+            {/* Current Books */}
+            {profile.favorite_books && profile.favorite_books.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+                {profile.favorite_books.map((book: any, index: number) => (
+                  <div key={index} className="relative group">
+                    <div className="aspect-[2/3] rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100">
+                      {book.cover_url ? (
+                        <img
+                          src={book.cover_url}
+                          alt={book.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          📖
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeBook(index)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <p className="text-xs mt-1 text-center truncate">{book.title}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Book Search */}
+            <div className="relative">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    placeholder="Search for books... (e.g., 'Atomic Habits')"
+                    value={bookSearch}
+                    onChange={(e) => {
+                      setBookSearch(e.target.value);
+                      if (e.target.value.length > 2) {
+                        searchGoogleBooks(e.target.value);
+                      } else {
+                        setBookResults([]);
+                      }
+                    }}
+                    className="bg-white pr-10"
+                  />
+                  {searchingBooks && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Book Results Dropdown */}
+              {bookResults.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-96 overflow-y-auto">
+                  {bookResults.map((book: any) => (
+                    <button
+                      key={book.id}
+                      type="button"
+                      onClick={() => addBook(book)}
+                      className="w-full p-3 hover:bg-gray-50 flex items-start gap-3 text-left border-b last:border-b-0"
+                    >
+                      {book.volumeInfo.imageLinks?.thumbnail ? (
+                        <img
+                          src={book.volumeInfo.imageLinks.thumbnail}
+                          alt={book.volumeInfo.title}
+                          className="w-12 h-16 object-cover rounded"
+                        />
+                      ) : (
+                        <div className="w-12 h-16 bg-gray-100 rounded flex items-center justify-center text-2xl">
+                          📖
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{book.volumeInfo.title}</p>
+                        <p className="text-xs text-gray-600 truncate">
+                          {book.volumeInfo.authors?.[0] || 'Unknown Author'}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

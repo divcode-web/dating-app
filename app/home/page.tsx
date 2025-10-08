@@ -31,6 +31,9 @@ export default function HomePage() {
       loadStats();
       loadRecentActivity();
 
+      // Mark matches as viewed when user lands on this page
+      updateLastViewedMatches();
+
       // Poll for updates every 5 seconds
       const statsInterval = setInterval(() => {
         loadStats();
@@ -41,6 +44,17 @@ export default function HomePage() {
       };
     }
   }, [user?.id]);
+
+  const updateLastViewedMatches = async () => {
+    try {
+      await supabase
+        .from("user_profiles")
+        .update({ last_viewed_matches_at: new Date().toISOString() })
+        .eq("id", user?.id);
+    } catch (error) {
+      console.error("Error updating last viewed matches:", error);
+    }
+  };
 
   const loadStats = async () => {
     try {
@@ -77,7 +91,6 @@ export default function HomePage() {
         }
 
         messagesCount = count || 0;
-        console.log(`Home page: Found ${messagesCount} unread messages`);
       }
 
       setStats({

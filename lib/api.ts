@@ -10,7 +10,6 @@ export function addProfileUpdateListener(listener: (userId: string) => void) {
 }
 
 export function notifyProfileUpdate(userId: string) {
-  console.log("📡 API DEBUG: Notifying profile update for user:", userId);
   profileUpdateListeners.forEach(listener => listener(userId));
 
   // Also store in localStorage for cross-tab synchronization
@@ -22,9 +21,6 @@ export function notifyProfileUpdate(userId: string) {
 
 // Profile Management
 export async function updateUserProfile(userId: string, profile: Partial<UserProfile>) {
-   console.log("💾 API DEBUG: Updating user profile for:", userId);
-   console.log("💾 API DEBUG: Profile data being updated:", profile);
-
    const { data, error } = await supabase
      .from('user_profiles')
      .upsert({ id: userId, ...profile }, { onConflict: 'id' })
@@ -32,11 +28,8 @@ export async function updateUserProfile(userId: string, profile: Partial<UserPro
      .single();
 
    if (error) {
-     console.error("❌ API DEBUG: Error updating profile:", error);
      throw error;
    }
-
-   console.log("✅ API DEBUG: Profile updated successfully:", data);
 
    // Notify other pages/components about the update
    notifyProfileUpdate(userId);
@@ -45,28 +38,21 @@ export async function updateUserProfile(userId: string, profile: Partial<UserPro
  }
 
 export async function getUserProfile(userId: string) {
-   console.log("🔍 API DEBUG: Getting user profile for:", userId);
-
    const { data, error } = await supabase
      .from('user_profiles')
      .select('*')
      .eq('id', userId)
      .single();
 
-   console.log("🔍 API DEBUG: Profile query result:", { data, error });
-
    // If no profile exists, return null instead of throwing
    if (error && error.code === 'PGRST116') {
-     console.log("⚠️ API DEBUG: No profile found for user:", userId);
      return null;
    }
 
    if (error) {
-     console.error("❌ API DEBUG: Error fetching profile:", error);
      throw error;
    }
 
-   console.log("✅ API DEBUG: Profile loaded successfully");
    return data;
  }
 
@@ -251,7 +237,46 @@ export async function getDiscoveryProfiles(userId: string, settings: UserSetting
     distance: profile.location_city === userLocation ? 0 : 10
   }));
 
-  console.log(`Discovery: Found ${profiles.length} profiles (${sameLocationProfiles.length} same location, ${otherLocationProfiles.length} other locations) for user ${userId}`);
+  // Phase 3: AI recommendations (PREMIUM FEATURE ONLY)
+  // Check if user is premium before applying AI sorting
+  const { data: premiumStatus } = await supabase
+    .from('user_profiles')
+    .select('is_premium')
+    .eq('id', userId)
+    .single();
+
+  if (premiumStatus?.is_premium) {
+    try {
+      const recommendationsResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/recommendations?userId=${userId}&limit=${profiles.length}`,
+        { cache: 'no-store' }
+      );
+
+      if (recommendationsResponse.ok) {
+        const { recommendations } = await recommendationsResponse.json();
+
+        if (recommendations && recommendations.length > 0) {
+          // Create a map of userId to AI score
+          const scoreMap = new Map(
+            recommendations.map((rec: any) => [rec.userId, rec.matchPercentage])
+          );
+
+          // Sort profiles by AI compatibility score (highest first)
+          profiles.sort((a, b) => {
+            const scoreA = Number(scoreMap.get(a.id) || 0);
+            const scoreB = Number(scoreMap.get(b.id) || 0);
+            return scoreB - scoreA; // Descending order
+          });
+
+        }
+      }
+    } catch (error) {
+      console.error('AI recommendations failed, using random order:', error);
+    }
+  } else {
+    // Free users get randomized profiles
+    profiles.sort(() => Math.random() - 0.5);
+  }
   return profiles;
 }
 

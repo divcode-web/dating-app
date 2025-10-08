@@ -61,13 +61,26 @@ export function Navigation({ showBackButton = false, title }: NavigationProps) {
         setUnreadMessages(count || 0);
       }
 
-      // Get new matches count (matches user hasn't viewed yet)
-      const { count: matchCount } = await supabase
+      // Get new matches count (matches created after last viewed)
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("last_viewed_matches_at")
+        .eq("id", user.id)
+        .single();
+
+      const lastViewedAt = profile?.last_viewed_matches_at;
+
+      // Count matches created after last viewed timestamp
+      let matchQuery = supabase
         .from("matches")
         .select("*", { count: "exact", head: true })
-        .or(`user_id_1.eq.${user.id},user_id_2.eq.${user.id}`)
-        .eq("viewed", false);
+        .or(`user_id_1.eq.${user.id},user_id_2.eq.${user.id}`);
 
+      if (lastViewedAt) {
+        matchQuery = matchQuery.gt("created_at", lastViewedAt);
+      }
+
+      const { count: matchCount } = await matchQuery;
       setNewMatches(matchCount || 0);
     };
 

@@ -90,7 +90,7 @@ export default function NewBlogPostPage() {
         setSelectedTags(post.tags?.map((t: any) => t.tag_id) || []);
       }
     } catch (error) {
-      console.error("Error fetching post:", error);
+      // console.error("Error fetching post:", error);
       toast.error("Failed to load post");
     }
   };
@@ -241,7 +241,7 @@ export default function NewBlogPostPage() {
       setShowAIDialog(false);
       toast.success("Blog post generated! Review and edit as needed.");
     } catch (error: any) {
-      console.error("AI generation error:", error);
+      // console.error("AI generation error:", error);
       toast.error(error.message || "Failed to generate blog post");
     } finally {
       setGeneratingAI(false);
@@ -324,7 +324,7 @@ export default function NewBlogPostPage() {
 
       router.push("/admin/blog");
     } catch (error: any) {
-      console.error("Error saving post:", error);
+      // console.error("Error saving post:", error);
       toast.error(error.message || "Failed to save post");
     } finally {
       setLoading(false);

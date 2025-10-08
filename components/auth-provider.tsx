@@ -79,7 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
 
-      if (event === "SIGNED_IN" && session?.user) {
+      // Skip all auth-provider logic for admin portal
+      const isAdminPortal = window.location.pathname.startsWith("/admin");
+
+      if (event === "SIGNED_IN" && session?.user && !isAdminPortal) {
         // Check if user is blocked by admin (only if columns exist)
         const { data: profile, error: profileError } = await supabase!
           .from("user_profiles")
@@ -100,13 +103,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Don't redirect if already on admin portal
-        const isAdminPortal = window.location.pathname.startsWith("/admin");
-        if (!isAdminPortal) {
-          toast.success("Welcome back!");
-          // Redirect to home after successful login
-          router.push("/home");
-        }
+        toast.success("Welcome back!");
+        // Small delay to let the login page handle its own redirect first
+        setTimeout(() => {
+          // Only redirect if still on auth page
+          if (window.location.pathname === "/auth") {
+            router.push("/home");
+          }
+        }, 100);
       } else if (event === "SIGNED_OUT") {
         // Redirect to admin login if signing out from admin
         const isAdminPortal = window.location.pathname.startsWith("/admin");

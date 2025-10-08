@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { supabase } from '@/lib/supabase'
+import { sanitizeUUID, sanitizeString } from '@/lib/sanitize'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -13,11 +14,13 @@ const PREMIUM_PRICES = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { priceId, userId } = await req.json()
+    const body = await req.json()
+    const priceId = sanitizeString(body.priceId)
+    const userId = sanitizeUUID(body.userId)
 
-    if (!priceId || !userId) {
+    if (!priceId || !userId || !PREMIUM_PRICES[priceId as keyof typeof PREMIUM_PRICES]) {
       return NextResponse.json(
-        { error: 'Missing required parameters' },
+        { error: 'Invalid or missing required parameters' },
         { status: 400 }
       )
     }

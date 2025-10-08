@@ -77,7 +77,7 @@ export default function AdminBlogPage() {
       if (error) throw error;
       setPosts(data || []);
     } catch (error) {
-      console.error("Error fetching posts:", error);
+      // console.error("Error fetching posts:", error);
       toast.error("Failed to fetch posts");
     } finally {
       setLoading(false);
@@ -98,7 +98,7 @@ export default function AdminBlogPage() {
       toast.success("Post deleted successfully");
       fetchPosts();
     } catch (error) {
-      console.error("Error deleting post:", error);
+      // console.error("Error deleting post:", error);
       toast.error("Failed to delete post");
     }
   };
@@ -120,7 +120,7 @@ export default function AdminBlogPage() {
       toast.success(`Post ${newStatus === "published" ? "published" : "unpublished"}`);
       fetchPosts();
     } catch (error) {
-      console.error("Error updating post status:", error);
+      // console.error("Error updating post status:", error);
       toast.error("Failed to update post");
     }
   };

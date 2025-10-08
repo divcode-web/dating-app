@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Heart, Mail, Lock, User, UserPlus, Calendar, MapPin, Camera } from 'lucide-react'
+import { Heart, Mail, Lock, User, UserPlus, Calendar, MapPin, Camera, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export function AuthForm() {
@@ -25,6 +25,8 @@ export function AuthForm() {
   const [location, setLocation] = useState('')
   const [interests, setInterests] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState('signin')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
 
   const { signIn, signUp, resetPassword } = useAuth()
 
@@ -71,6 +73,11 @@ export function AuthForm() {
       return
     }
 
+    if (!acceptedTerms) {
+      toast.error('Please accept the Terms & Conditions to continue')
+      return
+    }
+
     setIsLoading(true)
     try {
       // Check if email is permanently banned (only if table exists)
@@ -108,6 +115,7 @@ export function AuthForm() {
         setBio('')
         setLocation('')
         setInterests([])
+        setAcceptedTerms(false)
         setActiveTab('signin')
       }
     } catch (error) {
@@ -422,6 +430,41 @@ export function AuthForm() {
                       <div className="text-xs text-gray-500 text-right">
                         {bio.length}/500 characters
                       </div>
+                    </div>
+
+                    {/* Terms & Conditions Checkbox */}
+                    <div className="flex items-start space-x-3 p-4 bg-pink-50 rounded-lg border border-pink-100">
+                      <input
+                        type="checkbox"
+                        id="accept-terms"
+                        checked={acceptedTerms}
+                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                        className="mt-1 w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500 cursor-pointer"
+                      />
+                      <label htmlFor="accept-terms" className="text-sm text-gray-700 cursor-pointer">
+                        I agree to the{' '}
+                        <a
+                          href="/terms"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-pink-600 hover:text-pink-700 font-medium underline inline-flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Terms & Conditions
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                        {' '}and{' '}
+                        <a
+                          href="/privacy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-pink-600 hover:text-pink-700 font-medium underline inline-flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Privacy Policy
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </label>
                     </div>
 
                     <Button

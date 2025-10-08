@@ -22,6 +22,14 @@ export type UserProfile = {
   languages?: string[] | null;
   children?: string | null;
 
+  // Enhanced profile fields (Phase 1)
+  has_pets?: boolean | null;
+  pet_preference?: string | null;
+  favorite_books?: Array<{ title: string; author: string; cover_url: string | null }> | null;
+  spotify_id?: string | null;
+  spotify_top_artists?: string[] | null;
+  spotify_anthem?: { track_id: string; track_name: string; artist_name: string; album_image?: string; preview_url?: string } | null;
+
   // Status fields
   last_active: string;
   is_premium: boolean;

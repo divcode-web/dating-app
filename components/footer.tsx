@@ -49,7 +49,7 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-gray-400">
               <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Safety Tips</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Community Guidelines</a></li>
+              <li><a href="/community-guidelines" className="hover:text-white transition-colors">Community Guidelines</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Report a Problem</a></li>
             </ul>
@@ -81,9 +81,9 @@ export function Footer() {
               © 2024 DatingApp. All rights reserved.
             </p>
             <div className="flex space-x-6 text-sm text-gray-400">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-white transition-colors">Cookie Policy</a>
+              <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+              <a href="/terms" className="hover:text-white transition-colors">Terms & Conditions</a>
+              <a href="/community-guidelines" className="hover:text-white transition-colors">Community Guidelines</a>
             </div>
           </div>
         </div>

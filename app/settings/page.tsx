@@ -10,7 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useGeolocation } from "@/components/geolocation-provider";
-import { MapPin, CheckCircle2 } from "lucide-react";
+import { MapPin, CheckCircle2, Download, Trash2, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { getLocationAccuracy } from "@/lib/matching-score";
 import { useDarkMode } from "@/lib/use-dark-mode";
 
@@ -24,6 +26,9 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState({
     emailNotifications: true,
     pushNotifications: true,
+    notifyOnMatch: true,
+    notifyOnLike: true,
+    notifyOnMessage: true,
     profileVisibility: true,
     distanceRange: 50,
     ageRange: [18, 50],
@@ -33,6 +38,11 @@ export default function SettingsPage() {
     customLocationCountry: "",
     showMeGender: ["Male", "Female", "Non-binary", "Other"],
   });
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleteCategory, setDeleteCategory] = useState("other");
+  const [deleteFeedback, setDeleteFeedback] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -88,6 +98,9 @@ export default function SettingsPage() {
         setSettings({
           emailNotifications: data.email_notifications,
           pushNotifications: data.push_notifications,
+          notifyOnMatch: data.notify_on_match !== false,
+          notifyOnLike: data.notify_on_like !== false,
+          notifyOnMessage: data.notify_on_message !== false,
           profileVisibility: data.profile_visibility,
           distanceRange: data.distance_range,
           ageRange: data.age_range,
@@ -119,6 +132,100 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDownloadData = async () => {
+    try {
+      toast("Preparing your data...", { icon: "📦" });
+
+      // Fetch user's data from Supabase directly
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .maybeSingle();
+
+      const { data: matches } = await supabase
+        .from('matches')
+        .select('*')
+        .or(`user_id_1.eq.${user?.id},user_id_2.eq.${user?.id}`);
+
+      const { data: userSettings } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      // Create JSON export
+      const exportData = {
+        export_date: new Date().toISOString(),
+        account: {
+          email: user?.email,
+          user_id: user?.id,
+          created_at: user?.created_at,
+        },
+        profile: profile || { message: 'Profile not yet created' },
+        matches: {
+          total: matches?.length || 0,
+          list: matches || [],
+        },
+        settings: userSettings || {},
+      };
+
+      // Create downloadable file
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `my-data-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Data downloaded successfully!");
+    } catch (error) {
+      console.error("Error downloading data:", error);
+      toast.error("Failed to download data");
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteReason.trim()) {
+      toast.error("Please provide a reason for deletion");
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+
+      const response = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id,
+          reason: deleteReason,
+          category: deleteCategory,
+          feedback: deleteFeedback || null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete account");
+      }
+
+      toast.success("Account deleted successfully");
+
+      // Sign out and redirect
+      await supabase.auth.signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      toast.error("Failed to delete account");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const saveSettings = async () => {
     try {
       setLoading(true);
@@ -129,6 +236,9 @@ export default function SettingsPage() {
           user_id: user.id,
           email_notifications: settings.emailNotifications,
           push_notifications: settings.pushNotifications,
+          notify_on_match: settings.notifyOnMatch,
+          notify_on_like: settings.notifyOnLike,
+          notify_on_message: settings.notifyOnMessage,
           profile_visibility: settings.profileVisibility,
           distance_range: settings.distanceRange,
           age_range: settings.ageRange,
@@ -440,6 +550,61 @@ export default function SettingsPage() {
                     }
                   />
                 </div>
+
+                {/* Specific Notification Types */}
+                {settings.emailNotifications && (
+                  <div className="ml-4 space-y-3 border-l-2 border-pink-200 pl-4">
+                    <p className="text-xs font-semibold text-gray-600 uppercase">Email Notification Types</p>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-sm font-medium">Match Notifications</label>
+                        <p className="text-xs text-gray-500">Get notified when you match with someone</p>
+                      </div>
+                      <Switch
+                        checked={settings.notifyOnMatch}
+                        onCheckedChange={(checked) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            notifyOnMatch: checked,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-sm font-medium">Like Notifications</label>
+                        <p className="text-xs text-gray-500">Get notified when someone likes you</p>
+                      </div>
+                      <Switch
+                        checked={settings.notifyOnLike}
+                        onCheckedChange={(checked) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            notifyOnLike: checked,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-sm font-medium">Message Notifications</label>
+                        <p className="text-xs text-gray-500">Get notified when you receive a message</p>
+                      </div>
+                      <Switch
+                        checked={settings.notifyOnMessage}
+                        onCheckedChange={(checked) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            notifyOnMessage: checked,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -452,6 +617,10 @@ export default function SettingsPage() {
               <div className="p-8 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg text-white shadow-lg">
                 <h3 className="text-2xl font-bold mb-4">Unlock Premium Features</h3>
                 <ul className="space-y-3 mb-6">
+                  <li className="flex items-center space-x-2">
+                    <span className="text-xl">🤖</span>
+                    <span><strong>AI-Powered Matchmaking</strong> - Smart compatibility scoring</span>
+                  </li>
                   <li className="flex items-center space-x-2">
                     <span className="text-xl">✨</span>
                     <span>See who likes you</span>
@@ -508,21 +677,151 @@ export default function SettingsPage() {
             </div>
 
             <div>
+              <h3 className="text-lg font-semibold mb-4">Data & Privacy</h3>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2">Download Your Data</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Get a copy of all your data including profile, messages, matches, and activity
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={handleDownloadData}
+                    className="w-full"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download My Data (JSON)
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div>
               <h3 className="text-lg font-semibold mb-4">Danger Zone</h3>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-red-200 dark:border-red-800">
-                <Button
-                  variant="destructive"
-                  onClick={handleSignOut}
-                  disabled={loading}
-                  className="w-full bg-red-500 hover:bg-red-600"
-                >
-                  {loading ? "Signing out..." : "Sign Out"}
-                </Button>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-red-200 dark:border-red-800 space-y-4">
+                <div>
+                  <Button
+                    variant="outline"
+                    onClick={handleSignOut}
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    {loading ? "Signing out..." : "Sign Out"}
+                  </Button>
+                </div>
+
+                <div className="pt-4 border-t border-red-200">
+                  <h4 className="font-medium text-red-600 mb-2 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    Delete Account
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Permanently delete your account and all associated data. This action cannot be undone.
+                  </p>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="w-full bg-red-500 hover:bg-red-600"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete My Account
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Account Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Delete Account
+            </DialogTitle>
+            <DialogDescription>
+              We're sad to see you go. Please help us improve by telling us why you're leaving.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Why are you deleting your account? *
+              </label>
+              <select
+                value={deleteCategory}
+                onChange={(e) => setDeleteCategory(e.target.value)}
+                className="w-full p-2 border rounded-lg"
+              >
+                <option value="found_match">I found a match</option>
+                <option value="privacy_concerns">Privacy concerns</option>
+                <option value="not_useful">App not useful</option>
+                <option value="too_expensive">Too expensive</option>
+                <option value="technical_issues">Technical issues</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Please explain (required) *
+              </label>
+              <Textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Tell us more about your reason..."
+                rows={3}
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Any additional feedback? (optional)
+              </label>
+              <Textarea
+                value={deleteFeedback}
+                onChange={(e) => setDeleteFeedback(e.target.value)}
+                placeholder="How could we have made your experience better?"
+                rows={3}
+                className="w-full"
+              />
+            </div>
+
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                ⚠️ This will permanently delete all your data including:
+              </p>
+              <ul className="text-xs text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 ml-4">
+                <li>• Profile and photos</li>
+                <li>• All messages and matches</li>
+                <li>• Likes and activity history</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={isDeleting || !deleteReason.trim()}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {isDeleting ? "Deleting..." : "Delete Account Permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="mt-8 sticky bottom-0 bg-white dark:bg-gray-900 p-4 border-t">
         <Button onClick={saveSettings} disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700">

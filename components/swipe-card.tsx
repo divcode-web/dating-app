@@ -201,7 +201,7 @@ export function SwipeCard({ profile, onSwipe, onCardLeave, isTop }: SwipeCardPro
 
             {/* Extended Info - Show when expanded */}
             {showMore && (
-              <div className="space-y-2 text-sm border-t border-white/20 pt-3">
+              <div className="space-y-3 text-sm border-t border-white/20 pt-3">
                 {(profile as any).height && (
                   <div className="flex items-center">
                     <span className="text-white/70 w-24">Height:</span>
@@ -236,6 +236,60 @@ export function SwipeCard({ profile, onSwipe, onCardLeave, isTop }: SwipeCardPro
                   <div className="flex items-center">
                     <span className="text-white/70 w-24">Drinking:</span>
                     <span>{(profile as any).drinking}</span>
+                  </div>
+                )}
+
+                {/* Spotify Top Artists */}
+                {(profile as any).spotify_top_artists && (profile as any).spotify_top_artists.length > 0 && (
+                  <div className="border-t border-white/20 pt-3">
+                    <p className="text-white/70 mb-2 text-xs">🎵 TOP ARTISTS</p>
+                    <div className="flex flex-wrap gap-1">
+                      {(profile as any).spotify_top_artists.map((artist: string, i: number) => (
+                        <span key={i} className="px-2 py-1 bg-green-500/20 text-green-200 rounded-full text-xs">
+                          {artist}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Spotify Anthem */}
+                {(profile as any).spotify_anthem && (
+                  <div className="border-t border-white/20 pt-3">
+                    <p className="text-white/70 mb-2 text-xs">🎵 ANTHEM</p>
+                    <div className="flex items-center gap-2 bg-white/10 p-2 rounded-lg">
+                      {(profile as any).spotify_anthem.album_image && (
+                        <img
+                          src={(profile as any).spotify_anthem.album_image}
+                          alt="Album"
+                          className="w-10 h-10 rounded"
+                        />
+                      )}
+                      <div>
+                        <p className="text-white text-xs font-medium">{(profile as any).spotify_anthem.track_name}</p>
+                        <p className="text-white/70 text-xs">{(profile as any).spotify_anthem.artist_name}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Favorite Books */}
+                {(profile as any).favorite_books && (profile as any).favorite_books.length > 0 && (
+                  <div className="border-t border-white/20 pt-3">
+                    <p className="text-white/70 mb-2 text-xs">📚 FAVORITE BOOKS</p>
+                    <div className="space-y-2">
+                      {(profile as any).favorite_books.slice(0, 2).map((book: any, i: number) => (
+                        <div key={i} className="flex items-center gap-2 bg-white/10 p-2 rounded-lg">
+                          {book.cover && (
+                            <img src={book.cover} alt={book.title} className="w-6 h-9 object-cover rounded" />
+                          )}
+                          <div>
+                            <p className="text-white text-xs font-medium">{book.title}</p>
+                            <p className="text-white/70 text-xs">{book.author}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

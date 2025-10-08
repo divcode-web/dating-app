@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Heart, Calendar, Eye, Tag, Search, Flame } from "lucide-react";
 import { format } from "date-fns";
 import GoogleAdSense from "@/components/google-adsense";
+import { NewsletterSubscription } from "@/components/newsletter-subscription";
 
 interface BlogPost {
   id: string;
@@ -211,7 +212,12 @@ export default function BlogPage() {
               </div>
             )}
 
-            {/* Google AdSense - After Featured Post */}
+            {/* Newsletter Subscription */}
+            <div className="my-12">
+              <NewsletterSubscription />
+            </div>
+
+            {/* Google AdSense - After Newsletter */}
             <div className="my-12 flex justify-center">
               <GoogleAdSense
                 adSlot="1111111111"

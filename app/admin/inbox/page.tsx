@@ -153,7 +153,7 @@ export default function AdminInboxPage() {
       await loadConversation(selectedUserId);
       toast.success("Message sent");
     } catch (error) {
-      console.error("Error sending message:", error);
+      // console.error("Error sending message:", error);
       toast.error("Failed to send message");
     } finally {
       setLoading(false);

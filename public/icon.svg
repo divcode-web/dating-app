@@ -1,0 +1,5 @@
+<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#ec4899"/>
+  <path d="M256 400c-88 0-160-72-160-160 0-88 72-160 160-160s160 72 160 160c0 88-72 160-160 160z" fill="#ffffff" opacity="0.2"/>
+  <text x="256" y="300" font-family="Arial, sans-serif" font-size="200" fill="#ffffff" text-anchor="middle" font-weight="bold">♥</text>
+</svg>

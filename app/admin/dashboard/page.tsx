@@ -20,6 +20,8 @@ import {
   BookOpen,
   Search,
   Trash2,
+  Menu,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -90,6 +92,7 @@ export default function AdminDashboard() {
   const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     checkAdminAccess();
@@ -111,41 +114,79 @@ export default function AdminDashboard() {
     }
   }, [searchQuery, users]);
 
-  const checkAdminAccess = async () => {
+  const checkAdminAccess = async (retryCount = 0) => {
     try {
+      // console.log("🔍 Starting admin access check...");
+
       const { data: { user } } = await supabase.auth.getUser();
+      // console.log("👤 Current user:", user?.id, user?.email);
 
       if (!user) {
+        // console.log("❌ No authenticated user");
         router.push("/admin/login");
         return;
       }
 
+      // console.log("🔍 Checking admin_users table...");
       const { data: adminData, error } = await supabase
         .from("admin_users")
         .select("*")
         .eq("id", user.id)
         .maybeSingle();
 
+      // console.log("📊 Admin query result:", { adminData, error });
+
       if (error) {
-        console.error("Error checking admin status:", error);
+        // console.error("❌ Database error:", error);
+
+        // Type-safe error handling
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorCode = (error as any)?.code;
+
+        // Check if it's a "table doesn't exist" error
+        if (errorCode === '42P01' || errorMessage?.includes('relation "admin_users" does not exist')) {
+          toast.error("Admin system not initialized. Please create the admin_users table first.");
+          router.push("/admin/login");
+          return;
+        }
+
+        // If it's a different error and we haven't retried yet, try again
+        if (retryCount < 2) {
+          // console.log(`Retrying admin check (${retryCount + 1}/2)...`);
+          setTimeout(() => checkAdminAccess(retryCount + 1), 1000);
+          return;
+        }
+
         await supabase.auth.signOut();
-        toast.error("Database error. Please contact support.");
+        toast.error(`Database error: ${errorMessage}`);
         router.push("/admin/login");
         return;
       }
 
       if (!adminData) {
-        console.log("User is not in admin_users table:", user.email);
+        // console.log("❌ User not found in admin_users");
         await supabase.auth.signOut();
         toast.error("Access denied. Admin privileges required.");
         router.push("/admin/login");
         return;
       }
 
+      // console.log("✅ Admin verified! Loading dashboard...");
       setAdminUser(adminData);
       await loadDashboardData();
     } catch (error) {
-      console.error("Error:", error);
+      // console.error("💥 Unexpected error:", error);
+
+      // Type-safe error handling for catch block
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // If it's a network error, try again once
+      if (retryCount < 1 && errorMessage?.includes('fetch')) {
+        // console.log("Network error, retrying...");
+        setTimeout(() => checkAdminAccess(retryCount + 1), 2000);
+        return;
+      }
+
       router.push("/admin/login");
     } finally {
       setLoading(false);
@@ -203,7 +244,7 @@ export default function AdminDashboard() {
         todaySignups: todaySignups || 0,
       });
     } catch (error) {
-      console.error("Error loading stats:", error);
+      // console.error("Error loading stats:", error);
     }
   };
 
@@ -222,7 +263,7 @@ export default function AdminDashboard() {
       if (error) throw error;
       setReports(data || []);
     } catch (error) {
-      console.error("Error loading reports:", error);
+      // console.error("Error loading reports:", error);
     }
   };
 
@@ -237,7 +278,7 @@ export default function AdminDashboard() {
       if (error) throw error;
       setVerifications(data || []);
     } catch (error) {
-      console.error("Error loading verifications:", error);
+      // console.error("Error loading verifications:", error);
     }
   };
 
@@ -260,7 +301,7 @@ export default function AdminDashboard() {
       setBlockedUsers(blockedSet);
       setUsers(data || []);
     } catch (error) {
-      console.error("Error loading users:", error);
+      // console.error("Error loading users:", error);
     }
   };
 
@@ -281,7 +322,7 @@ export default function AdminDashboard() {
       await loadReports();
       await loadStats();
     } catch (error) {
-      console.error("Error:", error);
+      // console.error("Error:", error);
       toast.error("Failed to update report");
     }
   };
@@ -303,7 +344,7 @@ export default function AdminDashboard() {
       await loadVerifications();
       await loadStats();
     } catch (error) {
-      console.error("Error:", error);
+      // console.error("Error:", error);
       toast.error("Failed to update verification");
     }
   };
@@ -337,7 +378,7 @@ export default function AdminDashboard() {
       await loadUsers();
       await loadStats();
     } catch (error: any) {
-      console.error("Error blocking user:", error);
+      // console.error("Error blocking user:", error);
       toast.error("Failed to block user: " + error.message);
     }
   };
@@ -364,7 +405,7 @@ export default function AdminDashboard() {
       await loadUsers();
       await loadStats();
     } catch (error: any) {
-      console.error("Error unblocking user:", error);
+      // console.error("Error unblocking user:", error);
       toast.error("Failed to unblock user: " + error.message);
     }
   };
@@ -394,7 +435,9 @@ export default function AdminDashboard() {
             </h1>
             <p className="text-gray-300 mt-2">Welcome back, {adminUser?.role || 'Admin'}</p>
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex items-center gap-3">
             <Button
               onClick={() => router.push('/admin/inbox')}
               variant="outline"
@@ -420,6 +463,14 @@ export default function AdminDashboard() {
               Blog
             </Button>
             <Button
+              onClick={() => router.push('/admin/deletions')}
+              variant="outline"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Deletions
+            </Button>
+            <Button
               onClick={handleLogout}
               variant="outline"
               className="bg-white/10 border-white/20 text-white hover:bg-white/20"
@@ -428,7 +479,82 @@ export default function AdminDashboard() {
               Logout
             </Button>
           </div>
+
+          {/* Mobile Menu Button */}
+          <div className="lg:hidden">
+            <Button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              variant="outline"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+              size="icon"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
+          </div>
         </div>
+
+        {/* Mobile Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden mb-6 p-4 bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg">
+            <div className="flex flex-col gap-2">
+              <Button
+                onClick={() => {
+                  router.push('/admin/inbox');
+                  setMobileMenuOpen(false);
+                }}
+                variant="outline"
+                className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 justify-start"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                User Messages Inbox
+              </Button>
+              <Button
+                onClick={() => {
+                  router.push('/admin/messaging');
+                  setMobileMenuOpen(false);
+                }}
+                variant="outline"
+                className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 justify-start"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Send Message
+              </Button>
+              <Button
+                onClick={() => {
+                  router.push('/admin/blog');
+                  setMobileMenuOpen(false);
+                }}
+                variant="outline"
+                className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 justify-start"
+              >
+                <BookOpen className="w-4 h-4 mr-2" />
+                Blog
+              </Button>
+              <Button
+                onClick={() => {
+                  router.push('/admin/deletions');
+                  setMobileMenuOpen(false);
+                }}
+                variant="outline"
+                className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 justify-start"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Deletions
+              </Button>
+              <Button
+                onClick={() => {
+                  handleLogout();
+                  setMobileMenuOpen(false);
+                }}
+                variant="outline"
+                className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 justify-start"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
