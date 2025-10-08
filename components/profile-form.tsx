@@ -198,11 +198,6 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
     try {
       setLoading(true);
 
-      console.log('💾 Saving profile with data:', {
-        spotify_top_artists: profile.spotify_top_artists,
-        spotify_anthem: profile.spotify_anthem,
-      });
-
       // AI Moderation check for bio (Phase 3)
       if (profile.bio && profile.bio.trim()) {
         const moderationResponse = await fetch("/api/moderate", {
@@ -222,24 +217,16 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
         }
       }
 
-      await updateUserProfile(user.id, profile);
+      const savedData = await updateUserProfile(user.id, profile);
 
       toast.success("Profile updated successfully!");
+
+      // Keep the profile as-is (don't reload from database to avoid losing anthem)
+      // The database save succeeded, so the local state is correct
 
       // Call onSave callback to refresh parent component
       if (onSave) {
         onSave();
-      }
-
-      // Force reload profile data to ensure anthem is displayed
-      const updatedProfile = await getUserProfile(user.id);
-      if (updatedProfile) {
-        console.log('📥 Loaded profile after save:', {
-          spotify_top_artists: updatedProfile.spotify_top_artists,
-          spotify_anthem: updatedProfile.spotify_anthem,
-          fullProfile: updatedProfile,
-        });
-        setProfile(updatedProfile);
       }
     } catch (error) {
       console.error("Failed to update profile:", error);

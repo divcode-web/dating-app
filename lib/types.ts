@@ -68,6 +68,8 @@ export type Message = {
   sent_at: string;
   read_at: string | null;
   created_at: string;
+  story_id?: string | null;
+  story_reply_type?: 'text' | 'emoji' | null;
 };
 
 export type Like = {

@@ -26,10 +26,11 @@ export function StoryUpload({ onClose, onUploadComplete }: StoryUploadProps) {
     const selectedFile = event.target.files?.[0];
     if (!selectedFile) return;
 
-    // Validate file size (50MB max)
-    const maxSize = 50 * 1024 * 1024;
+    // Validate file size (10MB max for faster mobile uploads)
+    const maxSize = 10 * 1024 * 1024;
     if (selectedFile.size > maxSize) {
-      setError("File size must be less than 50MB");
+      const sizeMB = (selectedFile.size / (1024 * 1024)).toFixed(1);
+      setError(`File size (${sizeMB}MB) exceeds 10MB limit. Please compress or choose a smaller file.`);
       return;
     }
 

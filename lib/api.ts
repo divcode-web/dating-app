@@ -21,14 +21,31 @@ export function notifyProfileUpdate(userId: string) {
 
 // Profile Management
 export async function updateUserProfile(userId: string, profile: Partial<UserProfile>) {
+   // Stringify spotify_anthem if it's an object (database expects text)
+   const profileToSave = { ...profile };
+   if (profileToSave.spotify_anthem && typeof profileToSave.spotify_anthem === 'object') {
+     profileToSave.spotify_anthem = JSON.stringify(profileToSave.spotify_anthem) as any;
+   }
+
+   // Use update instead of upsert to be more explicit
    const { data, error } = await supabase
      .from('user_profiles')
-     .upsert({ id: userId, ...profile }, { onConflict: 'id' })
+     .update(profileToSave)
+     .eq('id', userId)
      .select()
      .single();
 
    if (error) {
      throw error;
+   }
+
+   // Parse spotify_anthem back to object for return
+   if (data && typeof data.spotify_anthem === 'string') {
+     try {
+       data.spotify_anthem = JSON.parse(data.spotify_anthem);
+     } catch (e) {
+       data.spotify_anthem = null;
+     }
    }
 
    // Notify other pages/components about the update
@@ -51,6 +68,15 @@ export async function getUserProfile(userId: string) {
 
    if (error) {
      throw error;
+   }
+
+   // Parse spotify_anthem if it's a string (database column is text instead of jsonb)
+   if (data && typeof data.spotify_anthem === 'string') {
+     try {
+       data.spotify_anthem = JSON.parse(data.spotify_anthem);
+     } catch (e) {
+       data.spotify_anthem = null;
+     }
    }
 
    return data;
@@ -231,11 +257,23 @@ export async function getDiscoveryProfiles(userId: string, settings: UserSetting
   // Combine profiles (80% same location, 20% others)
   const allProfiles = [...sameLocationProfiles, ...otherLocationProfiles];
 
-  // Add distance info
-  const profiles = allProfiles.map(profile => ({
-    ...profile,
-    distance: profile.location_city === userLocation ? 0 : 10
-  }));
+  // Add distance info and parse JSON fields
+  const profiles = allProfiles.map(profile => {
+    // Parse spotify_anthem if it's a string
+    if (profile.spotify_anthem && typeof profile.spotify_anthem === 'string') {
+      try {
+        profile.spotify_anthem = JSON.parse(profile.spotify_anthem);
+      } catch (e) {
+        console.error('Error parsing spotify_anthem:', e);
+        profile.spotify_anthem = null;
+      }
+    }
+
+    return {
+      ...profile,
+      distance: profile.location_city === userLocation ? 0 : 10
+    };
+  });
 
   // Phase 3: AI recommendations (PREMIUM FEATURE ONLY)
   // Check if user is premium before applying AI sorting

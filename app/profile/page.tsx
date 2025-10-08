@@ -85,6 +85,16 @@ export default function ProfilePage() {
 
       if (error) throw error;
 
+      // Parse spotify_anthem if it's a string (database stores as text)
+      if (data && typeof data.spotify_anthem === 'string') {
+        try {
+          data.spotify_anthem = JSON.parse(data.spotify_anthem);
+        } catch (e) {
+          console.error('Error parsing spotify_anthem:', e);
+          data.spotify_anthem = null;
+        }
+      }
+
       setProfileData(data);
 
       // Calculate completion percentage
@@ -291,7 +301,7 @@ export default function ProfilePage() {
                         </span>
                       ))}
                     </div>
-                    {profileData.spotify_anthem && (
+                    {profileData.spotify_anthem && typeof profileData.spotify_anthem === 'object' && (
                       <div className="mt-3 p-3 bg-gray-50 rounded-lg flex items-center gap-3">
                         {profileData.spotify_anthem.album_image && (
                           <img
@@ -548,7 +558,7 @@ export default function ProfilePage() {
                             </span>
                           ))}
                         </div>
-                        {profileData.spotify_anthem && (
+                        {profileData.spotify_anthem && typeof profileData.spotify_anthem === 'object' && (
                           <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg flex items-center gap-3">
                             {profileData.spotify_anthem.album_image && (
                               <img

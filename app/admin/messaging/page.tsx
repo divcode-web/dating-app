@@ -436,25 +436,55 @@ Happy matching! ❤️`,
                 setFormData((prev) => ({
                   ...prev,
                   messageType: "announcement",
-                  subject: "🎉 Exciting New Updates!",
+                  subject: "🎉 Amazing New Features & Updates!",
                   content: `Hi there! 👋
 
-We've just released some amazing new features:
+We've been working hard to make your dating experience better! Here's what's new:
 
-✨ **Stories Feature** - Share 24-hour moments with your matches! Just like Instagram stories, you can now post photos and videos that disappear after 24 hours. Perfect for sharing daily highlights and starting conversations.
+🎬 **STORIES FEATURE** - Just like Instagram!
+• Share 24-hour photos & videos with your matches
+• React with emojis (❤️😂😮😢👏🔥)
+• Reply directly to stories - messages appear in your chat
+• See who viewed your stories
+• Auto-expires after 24 hours
 
-🔄 **Cache Clear Tool** - If the app ever gets stuck or shows old content, you can now easily clear your cache from Settings → Account → App Performance. No more frustration with outdated content!
+🎵 **SPOTIFY INTEGRATION** - Music lovers unite!
+• Connect your Spotify account to your profile
+• Show your top artists and favorite songs
+• Let matches see your music taste
+• Find people with similar vibes
+• Share your current playlist
 
-💬 These updates are designed to help you connect better with your matches and have a smoother experience.
+🔒 **ENCRYPTED MESSAGING** - Your privacy matters!
+• All messages are end-to-end encrypted
+• Only you and your match can read them
+• Secure conversations you can trust
 
-Check them out and let us know what you think!
+🔄 **CACHE CLEAR TOOL** - No more frustration!
+• App stuck? Clear cache in Settings → Account → App Performance
+• Fixes loading issues instantly
+• Better mobile experience
+
+💬 **STORY REPLY HIGHLIGHTS**
+• Messages from story replies show thumbnails
+• See which story someone replied to
+• Better conversation context
+
+✨ **PERFORMANCE IMPROVEMENTS**
+• Faster story loading with smart caching
+• Optimized mobile uploads (10MB limit)
+• Smoother overall experience
+
+All these features are designed to help you connect authentically with your matches. Try them out and let us know what you think!
+
+Happy matching! ❤️
 
 Best regards,
-The DatingApp Team ❤️`,
+The DatingApp Team`,
                 }))
               }
             >
-              New Features Announcement
+              Complete Features Announcement
             </Button>
           </div>
         </Card>

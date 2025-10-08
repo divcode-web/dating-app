@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, ChevronLeft, ChevronRight, Trash2, Eye } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Trash2, Eye, MessageCircle, Send } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth-provider";
+import toast from "react-hot-toast";
 
 interface Story {
   id: string;
@@ -54,6 +55,12 @@ export function StoryViewer({
   const [isPaused, setIsPaused] = useState(false);
   const [viewers, setViewers] = useState<any[]>([]);
   const [showViewers, setShowViewers] = useState(false);
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [reactions, setReactions] = useState<any[]>([]);
+  const [myReaction, setMyReaction] = useState<string | null>(null);
+  const [sendingReaction, setSendingReaction] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -68,7 +75,12 @@ export function StoryViewer({
         loadViewers();
       }
     }
-  }, [story?.id]);
+  }, [story?.id, isOwnStory]);
+
+  // Pause story when reply input is shown
+  useEffect(() => {
+    setIsPaused(showReplyInput);
+  }, [showReplyInput]);
 
   useEffect(() => {
     if (!isPaused && story) {
@@ -207,6 +219,83 @@ export function StoryViewer({
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     return `${Math.floor(seconds / 86400)}d ago`;
+  };
+
+  const handleEmojiReact = async (emoji: string) => {
+    if (isOwnStory || sendingReaction) return;
+
+    setSendingReaction(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please log in to react");
+        setSendingReaction(false);
+        return;
+      }
+
+      const response = await fetch(`/api/stories/${story.id}/react`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ emoji }),
+      });
+
+      if (response.ok) {
+        setMyReaction(emoji);
+        toast.success(`Reacted with ${emoji}`, { duration: 1500 });
+        setTimeout(() => nextStory(), 500); // Auto advance after short delay
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Failed to react");
+      }
+    } catch (error) {
+      console.error("Error reacting to story:", error);
+      toast.error("Failed to send reaction");
+    } finally {
+      setSendingReaction(false);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!replyMessage.trim() || isOwnStory || sendingReply) return;
+
+    setSendingReply(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please log in to reply");
+        setSendingReply(false);
+        return;
+      }
+
+      const response = await fetch(`/api/stories/${story.id}/reply`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: replyMessage }),
+      });
+
+      if (response.ok) {
+        toast.success("Message sent!", { duration: 2000 });
+        setReplyMessage("");
+        setShowReplyInput(false);
+        // Story will resume automatically when input closes
+      } else {
+        const data = await response.json();
+        toast.error(data.error || "Failed to send message");
+      }
+    } catch (error) {
+      console.error("Error replying to story:", error);
+      toast.error("Failed to send reply");
+    } finally {
+      setSendingReply(false);
+    }
   };
 
   if (!story) return null;
@@ -350,6 +439,68 @@ export function StoryViewer({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Reply and Reactions UI (for viewing others' stories) */}
+      {!isOwnStory && (
+        <div className="absolute bottom-0 left-0 right-0 z-20 p-4 pb-safe">
+          {!showReplyInput ? (
+            <div className="flex gap-2 items-center justify-center">
+              {/* Quick emoji reactions */}
+              <div className="flex gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-1.5">
+                {['❤️', '😂', '😮', '😢', '👏', '🔥'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleEmojiReact(emoji)}
+                    className="text-xl hover:scale-125 transition-transform active:scale-95 p-1"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              {/* Reply button */}
+              <button
+                onClick={() => setShowReplyInput(true)}
+                className="flex-shrink-0 bg-black/40 backdrop-blur-md text-white rounded-full px-3 py-1.5 flex items-center gap-1 hover:bg-black/50 transition-colors active:scale-95"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span className="text-sm font-medium">Reply</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2 bg-white rounded-full px-3 py-2 shadow-lg max-w-md mx-auto">
+              <input
+                type="text"
+                value={replyMessage}
+                onChange={(e) => setReplyMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendReply();
+                  }
+                  if (e.key === 'Escape') {
+                    setShowReplyInput(false);
+                    setReplyMessage("");
+                  }
+                }}
+                placeholder="Message..."
+                className="flex-1 bg-transparent outline-none text-gray-800 placeholder-gray-400 text-sm"
+                autoFocus
+              />
+              <button
+                onClick={handleSendReply}
+                disabled={!replyMessage.trim() || sendingReply}
+                className="text-pink-500 disabled:text-gray-300 hover:scale-110 transition-transform active:scale-95 flex-shrink-0"
+              >
+                {sendingReply ? (
+                  <div className="animate-spin w-5 h-5 border-2 border-pink-500 border-t-transparent rounded-full" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

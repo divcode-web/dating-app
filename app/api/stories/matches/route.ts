@@ -173,10 +173,15 @@ export async function GET(request: NextRequest) {
       return new Date(b.latest_story_at).getTime() - new Date(a.latest_story_at).getTime();
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       stories: groupedStories,
     });
+
+    // Add cache headers for better performance
+    response.headers.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
+
+    return response;
   } catch (error) {
     console.error('Error in stories/matches route:', error);
     return NextResponse.json(

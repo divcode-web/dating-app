@@ -12,7 +12,7 @@ import { Match, Message, UserProfile } from "@/lib/types";
 import { getUserProfile, getMessages, sendMessage } from "@/lib/api";
 import { format } from "date-fns";
 import { Send, Image, MessageCircle, X, Flag, UserX, Eye, Bell, ArrowDown, ArrowLeft, Smile } from "lucide-react";
-import { encryptMessage, decryptMessage } from "@/lib/encryption";
+import { encryptMessage, decryptMessage, isEncrypted } from "@/lib/encryption";
 import dynamic from 'next/dynamic';
 
 // Dynamic imports for emoji and GIF pickers (client-side only)
@@ -29,9 +29,17 @@ function DecryptedMessage({ content, className }: { content: string; className?:
   const [decrypted, setDecrypted] = useState(content);
 
   useEffect(() => {
-    decryptMessage(content)
-      .then(setDecrypted)
-      .catch(() => setDecrypted(content)); // Fallback to original if decryption fails
+    // Use the proper encryption detection function
+    if (isEncrypted(content)) {
+      decryptMessage(content)
+        .then(setDecrypted)
+        .catch((err) => {
+          console.warn('Failed to decrypt message, showing as-is');
+          setDecrypted(content);
+        });
+    } else {
+      setDecrypted(content); // Already plain text (e.g., story replies)
+    }
   }, [content]);
 
   return <p className={className}>{decrypted}</p>;
@@ -51,6 +59,78 @@ interface AdminMessage {
     is_verified: boolean;
     is_premium: boolean;
   };
+}
+
+function StoryReplyIndicator({ storyId, isSender }: { storyId: string; isSender: boolean }) {
+  const [storyData, setStoryData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStory = async () => {
+      try {
+        const { data } = await supabase
+          .from('stories')
+          .select('id, media_url, media_type, caption, is_active, expires_at')
+          .eq('id', storyId)
+          .single();
+
+        setStoryData(data);
+      } catch (error) {
+        console.error('Error fetching story:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStory();
+  }, [storyId]);
+
+  const isExpired = storyData && (!storyData.is_active || new Date(storyData.expires_at) < new Date());
+
+  return (
+    <div className={`text-xs mb-2 pb-2 border-b ${
+      isSender ? "border-white/20" : "border-gray-300 dark:border-gray-600"
+    }`}>
+      <div className="flex items-center gap-2">
+        {/* Story Thumbnail */}
+        {!loading && storyData && (
+          <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
+            {storyData.media_type === 'image' ? (
+              <img
+                src={storyData.media_url}
+                alt="Story"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <video
+                src={storyData.media_url}
+                className="w-full h-full object-cover"
+                muted
+              />
+            )}
+            {isExpired && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <span className="text-[8px] text-white font-medium">Expired</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Text Label */}
+        <div className="flex-1">
+          <div className="flex items-center gap-1 opacity-80">
+            <MessageCircle className="w-3 h-3" />
+            <span className="font-medium">
+              {isSender ? "You replied to their story" : "Replied to your story"}
+            </span>
+          </div>
+          {isExpired && (
+            <p className="text-[10px] opacity-60 mt-0.5">Story has expired</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function MessagesPage() {
@@ -1094,6 +1174,13 @@ export default function MessagesPage() {
                             : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-bl-md"
                         }`}
                       >
+                        {/* Story Reply Indicator */}
+                        {message.story_id && (
+                          <StoryReplyIndicator
+                            storyId={message.story_id}
+                            isSender={message.sender_id === user?.id}
+                          />
+                        )}
                         {(message as any).image_url && (
                           <img
                             src={(message as any).image_url}

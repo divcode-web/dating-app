@@ -56,30 +56,43 @@ export function StoriesRing({ onStoryClick, onAddStoryClick }: StoriesRingProps)
   const loadStories = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) {
+        setLoading(false);
+        return;
+      }
 
       // Load stories from matches
-      const response = await fetch("/api/stories/matches", {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      try {
+        const response = await fetch("/api/stories/matches", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        setStoriesData(data.stories || []);
+        if (response.ok) {
+          const data = await response.json();
+          setStoriesData(data.stories || []);
+        } else {
+          console.log("Stories API not ready yet - run migrations first");
+        }
+      } catch (apiError) {
+        console.log("Stories feature not set up yet");
       }
 
       // Load user's own stories
-      const { data: ownStories } = await supabase
-        .from("stories")
-        .select("*")
-        .eq("user_id", user?.id)
-        .eq("is_active", true)
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false });
+      try {
+        const { data: ownStories } = await supabase
+          .from("stories")
+          .select("*")
+          .eq("user_id", user?.id)
+          .eq("is_active", true)
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false });
 
-      setMyStories(ownStories || []);
+        setMyStories(ownStories || []);
+      } catch (dbError) {
+        console.log("Stories table not created yet");
+      }
     } catch (error) {
       console.error("Error loading stories:", error);
     } finally {
