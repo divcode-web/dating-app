@@ -22,6 +22,15 @@ export default function ProfilePage() {
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
+    // Handle Spotify success redirect - force clean reload
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('spotify_success') === 'true') {
+      // Remove the query param and reload to show updated data
+      window.history.replaceState({}, '', '/profile');
+      window.location.reload();
+      return;
+    }
+
     const checkUser = async () => {
       try {
         const {

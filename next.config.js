@@ -85,6 +85,12 @@ const nextConfig = {
   poweredByHeader: false,
   // Optimize production builds
   swcMinify: true,
+  // Disable static optimization to fix hydration issues
+  reactStrictMode: true,
+  // Enable proper client-side transitions
+  experimental: {
+    appDir: true,
+  },
 }
 
 module.exports = withBundleAnalyzer(nextConfig)

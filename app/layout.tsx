@@ -9,6 +9,10 @@ import { CookieConsent } from '@/components/cookie-consent'
 
 const inter = Inter({ subsets: ['latin'] })
 
+// Force dynamic rendering to prevent hydration issues
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export const metadata: Metadata = {
   title: 'DatingApp - Find Your Perfect Match',
   description: 'A modern dating app to help you find meaningful connections',
