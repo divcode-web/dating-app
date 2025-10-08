@@ -80,6 +80,12 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
 
         const data = await getUserProfile(user.id);
         if (data) {
+          console.log("🔄 PROFILE-FORM DEBUG: Loaded profile data:", {
+            hasSpotifyArtists: !!data.spotify_top_artists,
+            spotifyArtistsLength: data.spotify_top_artists?.length || 0,
+            hasSpotifyAnthem: !!data.spotify_anthem,
+            spotifyAnthemType: typeof data.spotify_anthem
+          });
           setProfile(data);
         }
       } catch (error) {
@@ -830,19 +836,30 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
               onClick={handleSpotifyConnect}
               className="border-green-300 text-green-700 hover:bg-green-100"
             >
-              {profile.spotify_top_artists ? "Reconnect" : "Connect Spotify"}
+              {profile.spotify_top_artists && profile.spotify_top_artists.length > 0 ? "Reconnect" : "Connect Spotify"}
             </Button>
           </div>
 
           {/* Show connected Spotify data */}
-          {profile.spotify_top_artists &&
-            profile.spotify_top_artists.length > 0 && (
+          {(() => {
+            console.log("🎵 SPOTIFY DEBUG: Checking display conditions", {
+              hasArtists: !!profile.spotify_top_artists,
+              isArray: Array.isArray(profile.spotify_top_artists),
+              length: profile.spotify_top_artists?.length || 0,
+              hasAnthem: !!profile.spotify_anthem,
+              anthemType: typeof profile.spotify_anthem
+            });
+
+            return profile.spotify_top_artists &&
+                   Array.isArray(profile.spotify_top_artists) &&
+                   profile.spotify_top_artists.length > 0;
+          })() && (
               <div className="mt-3 p-3 bg-white rounded-lg">
                 <p className="text-xs font-semibold text-gray-600 mb-2">
                   TOP ARTISTS
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {profile.spotify_top_artists.map(
+                  {profile.spotify_top_artists?.map(
                     (artist: string, index: number) => (
                       <span
                         key={index}
@@ -854,7 +871,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                   )}
                 </div>
 
-                {profile.spotify_anthem && (
+                {profile.spotify_anthem && typeof profile.spotify_anthem === 'object' && (
                   <div className="mt-3 pt-3 border-t">
                     <p className="text-xs font-semibold text-gray-600 mb-2">
                       YOUR ANTHEM 🎵

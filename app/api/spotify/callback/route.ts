@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/profile?spotify_success=true`
+      `${process.env.NEXT_PUBLIC_APP_URL}/profile?spotify_success=true&_t=${Date.now()}`
     );
   } catch (error) {
     console.error('💥 Spotify callback error:', error);
