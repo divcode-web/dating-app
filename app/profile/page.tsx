@@ -85,17 +85,6 @@ export default function ProfilePage() {
 
       if (error) throw error;
 
-      // Debug: Check what Spotify data we got from database
-      console.log("📊 Profile loaded from database:", {
-        userId: userId,
-        hasSpotifyToken: !!data?.spotify_access_token,
-        hasSpotifyArtists: !!data?.spotify_top_artists,
-        artistsCount: data?.spotify_top_artists?.length || 0,
-        artists: data?.spotify_top_artists,
-        hasAnthem: !!data?.spotify_anthem,
-        anthem: data?.spotify_anthem,
-      });
-
       setProfileData(data);
 
       // Calculate completion percentage

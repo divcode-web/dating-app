@@ -34,10 +34,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('🎵 Spotify callback started for user:', userId);
-
     // Exchange code for access token
-    console.log('🔄 Exchanging code for access token...');
     const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
@@ -51,8 +48,6 @@ export async function GET(request: NextRequest) {
       }),
     });
 
-    console.log('🔐 Token response status:', tokenResponse.status);
-
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
       console.error('❌ Token exchange failed:', errorText);
@@ -60,12 +55,6 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenData = await tokenResponse.json();
-    console.log('✅ Token data received:', {
-      hasAccessToken: !!tokenData.access_token,
-      hasRefreshToken: !!tokenData.refresh_token,
-      expiresIn: tokenData.expires_in
-    });
-
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token;
     const expiresIn = tokenData.expires_in; // seconds
@@ -78,7 +67,6 @@ export async function GET(request: NextRequest) {
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
     // Get user's top artists
-    console.log('🎤 Fetching top artists...');
     const artistsResponse = await fetch(
       'https://api.spotify.com/v1/me/top/artists?limit=5&time_range=medium_term',
       {
@@ -88,8 +76,6 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    console.log('🎤 Artists response status:', artistsResponse.status);
-
     if (!artistsResponse.ok) {
       const errorText = await artistsResponse.text();
       console.error('❌ Artists fetch failed:', errorText);
@@ -98,10 +84,8 @@ export async function GET(request: NextRequest) {
 
     const artistsData = await artistsResponse.json();
     const topArtists = artistsData.items?.map((artist: any) => artist.name) || [];
-    console.log('✅ Top artists:', topArtists);
 
     // Get user's top track (anthem)
-    console.log('🎵 Fetching top track...');
     const tracksResponse = await fetch(
       'https://api.spotify.com/v1/me/top/tracks?limit=1&time_range=medium_term',
       {
@@ -110,8 +94,6 @@ export async function GET(request: NextRequest) {
         },
       }
     );
-
-    console.log('🎵 Tracks response status:', tracksResponse.status);
 
     let anthem = null;
     if (tracksResponse.ok) {
@@ -125,14 +107,10 @@ export async function GET(request: NextRequest) {
           preview_url: track.preview_url,
           album_image: track.album?.images[0]?.url,
         };
-        console.log('✅ Anthem found:', anthem.track_name);
       }
-    } else {
-      console.log('⚠️ Tracks fetch failed, continuing without anthem');
     }
 
     // Save to database using service role key (bypasses RLS)
-    console.log('💾 Saving to database...');
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -157,13 +135,6 @@ export async function GET(request: NextRequest) {
       console.error('❌ Database save failed:', updateError);
       throw updateError;
     }
-
-    console.log('✅ Spotify integration completed successfully');
-    console.log('✅ Data saved:', {
-      hasTokens: true,
-      artistsCount: topArtists.length,
-      hasAnthem: !!anthem
-    });
 
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/profile?spotify_success=true&_t=${Date.now()}`

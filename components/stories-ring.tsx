@@ -100,44 +100,42 @@ export function StoriesRing({ onStoryClick, onAddStoryClick }: StoriesRingProps)
     );
   }
 
+  const handleMyStoryClick = async () => {
+    if (myStories.length === 0) {
+      // No stories, open upload
+      onAddStoryClick();
+      return;
+    }
+
+    // Has stories, view them
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('id, full_name, photos')
+      .eq('id', user?.id)
+      .single();
+
+    onStoryClick({
+      user_id: user?.id!,
+      user: {
+        id: user?.id!,
+        full_name: profile?.full_name || "You",
+        profile_photo: profile?.photos?.[0] || null,
+      },
+      stories: myStories,
+      has_unviewed: false,
+      latest_story_at: myStories[0].created_at,
+    });
+  };
+
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 px-4 scrollbar-hide">
-      {/* Add Story Button */}
-      <div className="flex-shrink-0 cursor-pointer" onClick={onAddStoryClick}>
+      {/* Your Story - Always First */}
+      <div className="flex-shrink-0 cursor-pointer" onClick={handleMyStoryClick}>
         <div className="relative">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-50 to-purple-50 border-2 border-dashed border-pink-300 flex items-center justify-center hover:border-pink-500 transition-colors">
-            <Plus className="w-8 h-8 text-pink-500" />
-          </div>
-          <div className="absolute bottom-0 right-0 w-5 h-5 bg-pink-500 rounded-full border-2 border-white flex items-center justify-center">
-            <Plus className="w-3 h-3 text-white" />
-          </div>
-        </div>
-        <p className="text-xs text-center mt-2 font-medium">Your Story</p>
-      </div>
-
-      {/* User's Own Stories (if they have any) */}
-      {myStories.length > 0 && (
-        <div
-          className="flex-shrink-0 cursor-pointer"
-          onClick={() =>
-            onStoryClick({
-              user_id: user?.id!,
-              user: {
-                id: user?.id!,
-                full_name: "You",
-                profile_photo: null,
-              },
-              stories: myStories,
-              has_unviewed: false,
-              latest_story_at: myStories[0].created_at,
-            })
-          }
-        >
-          <div className="relative">
-            <div
-              className={`w-16 h-16 rounded-full p-[3px] bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600`}
-            >
-              <div className="w-full h-full rounded-full border-2 border-white overflow-hidden">
+          {myStories.length > 0 ? (
+            // User has stories - show with gradient ring
+            <div className="w-16 h-16 rounded-full p-[3px] bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600">
+              <div className="w-full h-full rounded-full border-2 border-white overflow-hidden bg-white">
                 <img
                   src={myStories[0]?.media_url || "/default-avatar.png"}
                   alt="Your story"
@@ -145,12 +143,29 @@ export function StoriesRing({ onStoryClick, onAddStoryClick }: StoriesRingProps)
                 />
               </div>
             </div>
-          </div>
-          <p className="text-xs text-center mt-2 font-medium truncate w-16">
-            You ({myStories.length})
-          </p>
+          ) : (
+            // No stories - show add button
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-50 to-purple-50 border-2 border-dashed border-pink-300 flex items-center justify-center hover:border-pink-500 transition-colors">
+              <Plus className="w-8 h-8 text-pink-500" />
+            </div>
+          )}
+          {/* Add story indicator (plus icon at bottom right) */}
+          {myStories.length > 0 && (
+            <div
+              className="absolute bottom-0 right-0 w-5 h-5 bg-pink-500 rounded-full border-2 border-white flex items-center justify-center cursor-pointer hover:bg-pink-600 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddStoryClick();
+              }}
+            >
+              <Plus className="w-3 h-3 text-white" />
+            </div>
+          )}
         </div>
-      )}
+        <p className="text-xs text-center mt-2 font-medium truncate w-16">
+          {myStories.length > 0 ? `Your Story` : 'Add Story'}
+        </p>
+      </div>
 
       {/* Stories from matches */}
       {storiesData.map((userStory) => (
@@ -181,6 +196,14 @@ export function StoriesRing({ onStoryClick, onAddStoryClick }: StoriesRingProps)
           </p>
         </div>
       ))}
+
+      {/* Empty state when no stories */}
+      {storiesData.length === 0 && myStories.length === 0 && (
+        <div className="flex-1 text-center py-4 text-gray-500">
+          <p className="text-sm">No stories from matches yet</p>
+          <p className="text-xs mt-1">Be the first to share!</p>
+        </div>
+      )}
     </div>
   );
 }

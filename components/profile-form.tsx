@@ -87,12 +87,6 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
 
         const data = await getUserProfile(user.id);
         if (data) {
-          console.log("🔄 PROFILE-FORM DEBUG: Loaded profile data:", {
-            hasSpotifyArtists: !!data.spotify_top_artists,
-            spotifyArtistsLength: data.spotify_top_artists?.length || 0,
-            hasSpotifyAnthem: !!data.spotify_anthem,
-            spotifyAnthemType: typeof data.spotify_anthem
-          });
           setProfile(data);
         }
       } catch (error) {
