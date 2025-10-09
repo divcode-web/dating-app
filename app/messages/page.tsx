@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Match, Message, UserProfile } from "@/lib/types";
 import { getUserProfile, getMessages, sendMessage } from "@/lib/api";
+import { getUserLimits, incrementMessageCount, formatTimeRemaining } from "@/lib/subscription-limits";
 import { format } from "date-fns";
-import { Send, Image, MessageCircle, X, Flag, UserX, Eye, Bell, ArrowDown, ArrowLeft, Smile } from "lucide-react";
+import { Send, Image, MessageCircle, X, Flag, UserX, Eye, Bell, ArrowDown, ArrowLeft, Smile, Check, CheckCheck } from "lucide-react";
 import { encryptMessage, decryptMessage, isEncrypted } from "@/lib/encryption";
 import dynamic from 'next/dynamic';
 
@@ -160,6 +161,8 @@ export default function MessagesPage() {
   const [iceBreakers, setIceBreakers] = useState<{id: string; question: string; category: string}[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [hasReadReceipts, setHasReadReceipts] = useState(false);
+  const [canSeeOnlineStatus, setCanSeeOnlineStatus] = useState(false);
   const adminMessagesEndRef = useRef<HTMLDivElement>(null);
   const adminMessagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -170,6 +173,7 @@ export default function MessagesPage() {
       loadAdminMessages();
       loadBlockedUsers();
       syncOnlineStatus();
+      checkReadReceiptsFeature();
 
       // Poll for match updates (to refresh unread counts) every 5 seconds
       const matchInterval = setInterval(() => {
@@ -187,6 +191,32 @@ export default function MessagesPage() {
       };
     }
   }, [user?.id]);
+
+  // Check if user has read receipts feature
+  const checkReadReceiptsFeature = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('subscription_tier_id')
+        .eq('id', user.id)
+        .single();
+
+      if (data?.subscription_tier_id) {
+        const { data: tierData } = await supabase
+          .from('subscription_tiers')
+          .select('has_read_receipts, can_see_online_status')
+          .eq('id', data.subscription_tier_id)
+          .single();
+
+        setHasReadReceipts(tierData?.has_read_receipts || false);
+        setCanSeeOnlineStatus(tierData?.can_see_online_status || false);
+      }
+    } catch (error) {
+      console.error('Error checking subscription features:', error);
+    }
+  };
 
   // Real-time online status sync
   const syncOnlineStatus = () => {
@@ -534,6 +564,23 @@ export default function MessagesPage() {
   const handleSendMessage = async () => {
     if (!selectedMatch || (!newMessage.trim() && !selectedImage) || !user?.id) return;
 
+    // Check message limits for free users
+    try {
+      const limits = await getUserLimits(user.id);
+      if (!limits.messages.canMessage) {
+        const resetTime = formatTimeRemaining(limits.messages.resetAt);
+        toast.error(
+          `Daily message limit reached (${limits.messages.limit}/day). Resets in ${resetTime} or upgrade to premium!`,
+          { duration: 5000 }
+        );
+        router.push('/premium?reason=messages');
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking message limits:', error);
+      // Continue with sending - don't block on limit check errors
+    }
+
     try {
       setUploading(true);
       let imageUrl = null;
@@ -599,6 +646,9 @@ export default function MessagesPage() {
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
+
+      // Increment message count for limit tracking
+      await incrementMessageCount(user.id);
 
       toast.success("Message sent");
     } catch (error: any) {
@@ -878,9 +928,12 @@ export default function MessagesPage() {
                           alt={match.profile.full_name}
                           className="w-12 h-12 rounded-full object-cover"
                         />
-                        <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                          isOnline ? "bg-green-500" : "bg-gray-400"
-                        }`}></div>
+                        {/* Online status indicator - only for premium users */}
+                        {canSeeOnlineStatus && (
+                          <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                            isOnline ? "bg-green-500" : "bg-gray-400"
+                          }`}></div>
+                        )}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
@@ -1232,9 +1285,21 @@ export default function MessagesPage() {
                           content={message.content}
                           className="text-sm"
                         />
-                        <p className="text-xs mt-1 opacity-70">
-                          {formatTime(message.created_at)}
-                        </p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <p className="text-xs opacity-70">
+                            {formatTime(message.created_at)}
+                          </p>
+                          {/* Read Receipts - only show for sent messages if user has feature */}
+                          {message.sender_id === user?.id && hasReadReceipts && (
+                            <span className="ml-1" title={(message as any).is_read ? `Read ${(message as any).read_at ? format(new Date((message as any).read_at), 'MMM d, h:mm a') : ''}` : 'Sent'}>
+                              {(message as any).is_read ? (
+                                <CheckCheck className="w-3 h-3 text-blue-400" />
+                              ) : (
+                                <Check className="w-3 h-3 opacity-50" />
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1347,7 +1412,7 @@ export default function MessagesPage() {
                         </button>
                       </div>
                       <GifPicker
-                        tenorApiKey={process.env.NEXT_PUBLIC_TENOR_API_KEY || "AIzaSyDhxw8zC0jVZsGP0y1rF7y3x0Y1rYqkLQc"}
+                        tenorApiKey={process.env.NEXT_PUBLIC_TENOR_API_KEY || ""}
                         onGifClick={handleGifSelect}
                         width={300}
                         height={400}
