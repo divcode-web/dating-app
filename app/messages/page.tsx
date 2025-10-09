@@ -445,7 +445,14 @@ export default function MessagesPage() {
   const loadMessages = async (matchId: string) => {
     try {
       const messages = await getMessages(matchId);
-      setMessages(messages);
+
+      // Check if no messages and if user is blocked - this could indicate blocking
+      if (!messages || messages.length === 0) {
+        // Still set empty messages array
+        setMessages([]);
+      } else {
+        setMessages(messages);
+      }
 
       // Mark unread messages as read (only messages from other user)
       if (messages && user?.id) {
@@ -464,6 +471,7 @@ export default function MessagesPage() {
       }
     } catch (error) {
       console.error("Error loading messages:", error);
+      setMessages([]);
     }
   };
 
@@ -597,6 +605,8 @@ export default function MessagesPage() {
       console.error("Error sending message:", error);
       if (error.message?.includes("Daily message limit")) {
         toast.error("Daily message limit reached. Upgrade to premium!");
+      } else if (error.code === '42501' || error.message?.includes('blocked') || error.message?.includes('policy')) {
+        toast.error("Message failed: This user may have blocked you or you've blocked them");
       } else {
         toast.error("Failed to send message");
       }
@@ -1156,6 +1166,36 @@ export default function MessagesPage() {
                   </div>
                 </div>
 
+                {/* Blocked User Warning */}
+                {blockedUsers.has(
+                  selectedMatch.user_id_1 === user?.id
+                    ? selectedMatch.user_id_2
+                    : selectedMatch.user_id_1
+                ) && (
+                  <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <UserX className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                        <div>
+                          <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">
+                            You blocked this user
+                          </p>
+                          <p className="text-xs text-orange-700 dark:text-orange-300">
+                            Unblock to send and receive messages
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={handleUnblockUser}
+                        size="sm"
+                        className="bg-orange-600 hover:bg-orange-700 text-white"
+                      >
+                        Unblock
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
                   {messages.map((message) => (
@@ -1257,6 +1297,17 @@ export default function MessagesPage() {
 
                 {/* Message Input */}
                 <div className="p-4 border-t dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-900">
+                  {blockedUsers.has(
+                    selectedMatch.user_id_1 === user?.id
+                      ? selectedMatch.user_id_2
+                      : selectedMatch.user_id_1
+                  ) && (
+                    <div className="mb-3 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg text-center">
+                      <p className="text-sm text-orange-900 dark:text-orange-100 font-medium">
+                        You need to unblock this user to send messages
+                      </p>
+                    </div>
+                  )}
                   {imagePreview && (
                     <div className="mb-3 relative inline-block">
                       <img
@@ -1311,13 +1362,22 @@ export default function MessagesPage() {
                       onChange={handleImageSelect}
                       className="hidden"
                       id="image-upload"
+                      disabled={blockedUsers.has(
+                        selectedMatch.user_id_1 === user?.id
+                          ? selectedMatch.user_id_2
+                          : selectedMatch.user_id_1
+                      )}
                     />
                     <Button
                       variant="outline"
                       size="icon"
                       className="shrink-0"
                       onClick={() => document.getElementById("image-upload")?.click()}
-                      disabled={uploading}
+                      disabled={uploading || blockedUsers.has(
+                        selectedMatch.user_id_1 === user?.id
+                          ? selectedMatch.user_id_2
+                          : selectedMatch.user_id_1
+                      )}
                     >
                       <Image className="w-4 h-4" />
                     </Button>
@@ -1329,7 +1389,11 @@ export default function MessagesPage() {
                         setShowEmojiPicker(!showEmojiPicker);
                         setShowGifPicker(false);
                       }}
-                      disabled={uploading}
+                      disabled={uploading || blockedUsers.has(
+                        selectedMatch.user_id_1 === user?.id
+                          ? selectedMatch.user_id_2
+                          : selectedMatch.user_id_1
+                      )}
                     >
                       <Smile className="w-4 h-4" />
                     </Button>
@@ -1341,22 +1405,42 @@ export default function MessagesPage() {
                         setShowGifPicker(!showGifPicker);
                         setShowEmojiPicker(false);
                       }}
-                      disabled={uploading}
+                      disabled={uploading || blockedUsers.has(
+                        selectedMatch.user_id_1 === user?.id
+                          ? selectedMatch.user_id_2
+                          : selectedMatch.user_id_1
+                      )}
                     >
                       GIF
                     </Button>
                     <Input
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type a message..."
+                      placeholder={
+                        blockedUsers.has(
+                          selectedMatch.user_id_1 === user?.id
+                            ? selectedMatch.user_id_2
+                            : selectedMatch.user_id_1
+                        )
+                          ? "Unblock to send messages..."
+                          : "Type a message..."
+                      }
                       onKeyPress={(e) =>
                         e.key === "Enter" && !uploading && handleSendMessage()
                       }
-                      disabled={uploading}
+                      disabled={uploading || blockedUsers.has(
+                        selectedMatch.user_id_1 === user?.id
+                          ? selectedMatch.user_id_2
+                          : selectedMatch.user_id_1
+                      )}
                     />
                     <Button
                       onClick={handleSendMessage}
-                      disabled={(!newMessage.trim() && !selectedImage) || uploading}
+                      disabled={(!newMessage.trim() && !selectedImage) || uploading || blockedUsers.has(
+                        selectedMatch.user_id_1 === user?.id
+                          ? selectedMatch.user_id_2
+                          : selectedMatch.user_id_1
+                      )}
                       className="shrink-0"
                     >
                       {uploading ? (

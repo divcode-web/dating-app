@@ -486,7 +486,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                 setProfile((prev) => ({ ...prev, gender: value }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger id="gender">
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
@@ -655,7 +655,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                 setProfile((prev) => ({ ...prev, smoking: value }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger id="smoking">
                 <SelectValue placeholder="Select..." />
               </SelectTrigger>
               <SelectContent>
@@ -674,7 +674,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                 setProfile((prev) => ({ ...prev, drinking: value }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger id="drinking">
                 <SelectValue placeholder="Select..." />
               </SelectTrigger>
               <SelectContent>
@@ -705,7 +705,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                 setProfile((prev) => ({ ...prev, children: value }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger id="children">
                 <SelectValue placeholder="Select..." />
               </SelectTrigger>
               <SelectContent>
@@ -813,7 +813,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                 setProfile((prev) => ({ ...prev, relationship_type: value }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger id="relationshipType">
                 <SelectValue placeholder="Select what you're looking for" />
               </SelectTrigger>
               <SelectContent>
@@ -880,7 +880,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                 setProfile((prev) => ({ ...prev, pet_preference: value }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger id="pet_preference">
                 <SelectValue placeholder="Select your pet preference" />
               </SelectTrigger>
               <SelectContent>

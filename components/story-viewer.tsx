@@ -55,6 +55,7 @@ export function StoryViewer({
   const [isPaused, setIsPaused] = useState(false);
   const [viewers, setViewers] = useState<any[]>([]);
   const [showViewers, setShowViewers] = useState(false);
+  const [showReactions, setShowReactions] = useState(false);
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyMessage, setReplyMessage] = useState("");
   const [reactions, setReactions] = useState<any[]>([]);
@@ -73,14 +74,15 @@ export function StoryViewer({
       markStoryAsViewed();
       if (isOwnStory) {
         loadViewers();
+        loadReactions();
       }
     }
   }, [story?.id, isOwnStory]);
 
-  // Pause story when reply input is shown
+  // Pause story when reply input, viewers, or reactions are shown
   useEffect(() => {
-    setIsPaused(showReplyInput);
-  }, [showReplyInput]);
+    setIsPaused(showReplyInput || showViewers || showReactions);
+  }, [showReplyInput, showViewers, showReactions]);
 
   useEffect(() => {
     if (!isPaused && story) {
@@ -140,6 +142,37 @@ export function StoryViewer({
       }
     } catch (error) {
       console.error("Error loading viewers:", error);
+    }
+  };
+
+  const loadReactions = async () => {
+    if (!story) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('story_reactions')
+        .select(`
+          id,
+          emoji,
+          created_at,
+          user_id,
+          user_profiles!user_id (
+            id,
+            full_name,
+            photos
+          )
+        `)
+        .eq('story_id', story.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error loading reactions:", error);
+        return;
+      }
+
+      setReactions(data || []);
+    } catch (error) {
+      console.error("Error loading reactions:", error);
     }
   };
 
@@ -344,11 +377,24 @@ export function StoryViewer({
           {isOwnStory && (
             <>
               <button
-                onClick={() => setShowViewers(!showViewers)}
-                className="text-white hover:bg-white/20 p-2 rounded-full transition-colors"
+                onClick={() => {
+                  setShowViewers(!showViewers);
+                  setShowReactions(false);
+                }}
+                className="text-white hover:bg-white/20 p-2 rounded-full transition-colors flex items-center gap-1"
               >
                 <Eye className="w-5 h-5" />
-                <span className="text-xs ml-1">{viewers.length}</span>
+                <span className="text-xs">{viewers.length}</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowReactions(!showReactions);
+                  setShowViewers(false);
+                }}
+                className="text-white hover:bg-white/20 p-2 rounded-full transition-colors flex items-center gap-1"
+              >
+                <span className="text-lg">❤️</span>
+                <span className="text-xs">{reactions.length}</span>
               </button>
               <button
                 onClick={deleteStory}
@@ -367,19 +413,27 @@ export function StoryViewer({
         </div>
       </div>
 
-      {/* Navigation areas */}
-      <div className="absolute inset-0 flex">
+      {/* Navigation areas - Split screen for tap navigation */}
+      <div className="absolute inset-0 flex z-5">
+        {/* Left side - previous story */}
         <div
-          className="flex-1 cursor-pointer"
-          onClick={previousStory}
+          className="flex-1 cursor-pointer active:bg-white/5 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            previousStory();
+          }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           onTouchStart={handleMouseDown}
           onTouchEnd={handleMouseUp}
         />
+        {/* Right side - next story */}
         <div
-          className="flex-1 cursor-pointer"
-          onClick={nextStory}
+          className="flex-1 cursor-pointer active:bg-white/5 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            nextStory();
+          }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           onTouchStart={handleMouseDown}
@@ -419,25 +473,76 @@ export function StoryViewer({
       {/* Viewers panel */}
       {isOwnStory && showViewers && (
         <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-4 max-h-[50vh] overflow-y-auto z-20">
-          <h3 className="font-semibold text-lg mb-4">
-            Viewers ({viewers.length})
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-lg">
+              Viewers ({viewers.length})
+            </h3>
+            <button
+              onClick={() => setShowViewers(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
           <div className="space-y-3">
-            {viewers.map((viewer) => (
-              <div key={viewer.id} className="flex items-center gap-3">
-                <img
-                  src={viewer.viewer?.photos?.[0] || "/default-avatar.png"}
-                  alt={viewer.viewer?.full_name}
-                  className="w-10 h-10 rounded-full"
-                />
-                <div className="flex-1">
-                  <p className="font-medium">{viewer.viewer?.full_name}</p>
-                  <p className="text-xs text-gray-500">
-                    {formatTimeAgo(viewer.viewed_at)}
-                  </p>
+            {viewers.length === 0 ? (
+              <p className="text-center text-gray-500 py-4">No views yet</p>
+            ) : (
+              viewers.map((viewer) => (
+                <div key={viewer.id} className="flex items-center gap-3">
+                  <img
+                    src={viewer.viewer?.photos?.[0] || "/default-avatar.png"}
+                    alt={viewer.viewer?.full_name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">{viewer.viewer?.full_name}</p>
+                    <p className="text-xs text-gray-500">
+                      {formatTimeAgo(viewer.viewed_at)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Reactions panel */}
+      {isOwnStory && showReactions && (
+        <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-4 max-h-[50vh] overflow-y-auto z-20">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-lg">
+              Reactions ({reactions.length})
+            </h3>
+            <button
+              onClick={() => setShowReactions(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="space-y-3">
+            {reactions.length === 0 ? (
+              <p className="text-center text-gray-500 py-4">No reactions yet</p>
+            ) : (
+              reactions.map((reaction) => (
+                <div key={reaction.id} className="flex items-center gap-3">
+                  <img
+                    src={reaction.user_profiles?.photos?.[0] || "/default-avatar.png"}
+                    alt={reaction.user_profiles?.full_name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">{reaction.user_profiles?.full_name}</p>
+                    <p className="text-xs text-gray-500">
+                      {formatTimeAgo(reaction.created_at)}
+                    </p>
+                  </div>
+                  <span className="text-2xl">{reaction.emoji}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
