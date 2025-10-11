@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { moderateContent, moderateProfileBio, moderateMessage } from '@/lib/ai-moderation';
 import { sanitizeString } from '@/lib/sanitize';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

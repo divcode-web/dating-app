@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import { getTopRecommendations, explainRecommendation } from '@/lib/ai-recommendations';
 import { sanitizeUUID, sanitizeNumber } from '@/lib/sanitize';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
