@@ -2399,9 +2399,9 @@ Users can control:
 
 ### Data Protection Officer Contact
 
-**Email:** dpo@lovento.com
-**Privacy Inquiries:** privacy@lovento.com
-**Legal Inquiries:** legal@lovento.com
+**Email:** dpo@loventodate.com
+**Privacy Inquiries:** privacy@loventodate.com
+**Legal Inquiries:** legal@loventodate.com
 
 ### Breach Notification Procedure
 
@@ -4440,7 +4440,7 @@ Your email service code is correctly implemented, but **Resend requires a verifi
 3. **Verify Your Domain** (Required for production)
    - In Resend dashboard, go to "Domains"
    - Click "Add Domain"
-   - Enter your domain (e.g., `lovento.com`)
+   - Enter your domain (e.g., `loventodate.com`)
    - Add the DNS records they provide to your domain registrar:
      - TXT record for domain verification
      - MX records for email delivery
@@ -4449,7 +4449,7 @@ Your email service code is correctly implemented, but **Resend requires a verifi
 4. **Update Email Sender Address**
    - Once domain is verified, update the from address in `lib/email-service.ts` (line 36):
      ```typescript
-     from: options.from || 'lovento <noreply@lovento.com>',
+     from: options.from || 'lovento <noreply@loventodate.com>',
      ```
 
 ### Option 2: Testing with Resend Sandbox (For Development Only)
@@ -5849,7 +5849,7 @@ Google OAuth authentication has been added to both Sign In and Sign Up pages. Us
    - **User support email**: your-email@example.com
    - **App logo**: Upload your lovento logo (optional)
    - **App domain**: your-domain.com
-   - **Authorized domains**: Add your domain (e.g., `lovento.com`)
+   - **Authorized domains**: Add your domain (e.g., `loventodate.com`)
    - **Developer contact**: your-email@example.com
    - Click "Save and Continue"
 
@@ -8665,16 +8665,16 @@ ORDER BY count DESC;
 
 Users can contact regarding data protection at:
 
-- Email: privacy@lovento.com
-- Data Protection Officer: dpo@lovento.com
+- Email: privacy@loventodate.com
+- Data Protection Officer: dpo@loventodate.com
 
 ### Legal Inquiries:
 
-- Email: legal@lovento.com
+- Email: legal@loventodate.com
 
 ### Support:
 
-- Email: support@lovento.com
+- Email: support@loventodate.com
 - Phone: 1-800-DATING
 
 ---
@@ -10518,21 +10518,21 @@ Feature is successfully deployed when:
 - [ ] All code reviewed
 - [ ] All tests passed
 - [ ] Performance acceptable
-- Date: ****\_\_\_**** Signature: ****\_\_\_****
+- Date: \***\*\_\_\_\*\*** Signature: \***\*\_\_\_\*\***
 
 ### QA/Testing
 
 - [ ] All test scenarios completed
 - [ ] No critical bugs found
 - [ ] Ready for production
-- Date: ****\_\_\_**** Signature: ****\_\_\_****
+- Date: \***\*\_\_\_\*\*** Signature: \***\*\_\_\_\*\***
 
 ### Product Owner
 
 - [ ] Feature meets requirements
 - [ ] UX is acceptable
 - [ ] Ready to launch
-- Date: ****\_\_\_**** Signature: ****\_\_\_****
+- Date: \***\*\_\_\_\*\*** Signature: \***\*\_\_\_\*\***
 
 ---
 

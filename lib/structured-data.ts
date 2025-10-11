@@ -1,5 +1,5 @@
 export function getOrganizationSchema() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lovento.com'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://loventodate.com'
 
   return {
     '@context': 'https://schema.org',
@@ -20,14 +20,14 @@ export function getOrganizationSchema() {
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'Customer Service',
-      email: 'support@lovento.com',
+      email: 'support@loventodate.com',
       availableLanguage: ['English'],
     },
   }
 }
 
 export function getWebSiteSchema() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lovento.com'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://loventodate.com'
 
   return {
     '@context': 'https://schema.org',
@@ -47,7 +47,7 @@ export function getWebSiteSchema() {
 }
 
 export function getWebApplicationSchema() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lovento.com'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://loventodate.com'
 
   return {
     '@context': 'https://schema.org',
@@ -78,7 +78,7 @@ export function getWebApplicationSchema() {
 }
 
 export function getBreadcrumbSchema(items: { name: string; url: string }[]) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lovento.com'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://loventodate.com'
 
   return {
     '@context': 'https://schema.org',

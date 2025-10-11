@@ -481,10 +481,10 @@ export default function CommunityGuidelinesPage() {
             </p>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-gray-700">
-                <strong>Email:</strong> support@lovento.com
+                <strong>Email:</strong> support@loventodate.com
               </p>
               <p className="text-gray-700">
-                <strong>Report Safety Concerns:</strong> safety@lovento.com
+                <strong>Report Safety Concerns:</strong> safety@loventodate.com
               </p>
             </div>
           </section>

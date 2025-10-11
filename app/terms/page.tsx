@@ -337,7 +337,7 @@ export default function TermsPage() {
               If you have questions about these Terms, please contact us at:
             </p>
             <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-gray-700">Email: legal@lovento.com</p>
+              <p className="text-gray-700">Email: legal@loventodate.com</p>
               <p className="text-gray-700">
                 Address: 123 Dating Street, San Francisco, CA 94102
               </p>

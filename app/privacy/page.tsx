@@ -305,7 +305,7 @@ export default function PrivacyPage() {
                 To exercise your rights:
               </p>
               <p className="text-pink-800 mt-1">
-                Email privacy@lovento.com or use your account settings
+                Email privacy@loventodate.com or use your account settings
               </p>
               <p className="text-pink-800 text-sm mt-1">
                 We will respond within 30 days (GDPR) or 45 days (CCPA)
@@ -516,10 +516,10 @@ export default function PrivacyPage() {
             </p>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-gray-700">
-                <strong>Email:</strong> privacy@lovento.com
+                <strong>Email:</strong> privacy@loventodate.com
               </p>
               <p className="text-gray-700">
-                <strong>Data Protection Officer:</strong> dpo@lovento.com
+                <strong>Data Protection Officer:</strong> dpo@loventodate.com
               </p>
               <p className="text-gray-700">
                 <strong>Address:</strong> 123 Dating Street, San Francisco, CA

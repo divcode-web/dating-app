@@ -259,7 +259,7 @@ export async function sendAccountSuspendedNotification(
             <p><strong>What you can do:</strong></p>
             <ul>
               <li>Review our <a href="${process.env.NEXT_PUBLIC_APP_URL}/community-guidelines">Community Guidelines</a></li>
-              <li>Contact support: support@lovento.com</li>
+              <li>Contact support: support@loventodate.com</li>
               ${suspendedUntil ? '<li>Wait for the suspension period to end</li>' : ''}
             </ul>
           </div>

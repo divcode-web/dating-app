@@ -304,13 +304,13 @@ export default function CookiePolicyPage() {
             </p>
             <div className="bg-purple-50 p-4 rounded-lg">
               <p>
-                <strong>Email:</strong> privacy@lovento.com
+                <strong>Email:</strong> privacy@loventodate.com
               </p>
               <p>
                 <strong>Address:</strong> [Your Company Address]
               </p>
               <p>
-                <strong>Data Protection Officer:</strong> dpo@lovento.com
+                <strong>Data Protection Officer:</strong> dpo@loventodate.com
               </p>
             </div>
           </section>
