@@ -67,7 +67,15 @@ export async function getUserLimits(userId: string): Promise<UserLimits> {
       .eq('id', userId)
       .single();
 
-    const tier = profile?.subscription_tiers || await getFreeTier();
+    // Handle subscription_tiers which could be array or object
+    let tier: SubscriptionTier;
+    if (profile?.subscription_tiers) {
+      tier = Array.isArray(profile.subscription_tiers)
+        ? profile.subscription_tiers[0]
+        : profile.subscription_tiers;
+    } else {
+      tier = await getFreeTier();
+    }
 
     // Get swipe limits
     const swipeLimits = await getSwipeLimits(userId, tier);
