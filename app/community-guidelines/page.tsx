@@ -227,7 +227,7 @@ export default function CommunityGuidelinesPage() {
             </div>
 
             <div className="pl-13 space-y-3">
-              <p className="text-gray-700 leading-relaxed font-semibold text-green-700">
+              <p className="text-green-700 leading-relaxed font-semibold">
                 ✅ Good Photos:
               </p>
               <ul className="list-disc pl-6 space-y-1 text-gray-700">
@@ -237,7 +237,7 @@ export default function CommunityGuidelinesPage() {
                 <li>Variety: close-ups, full body, hobbies</li>
               </ul>
 
-              <p className="text-gray-700 leading-relaxed font-semibold text-red-700 mt-4">
+              <p className="text-red-700 leading-relaxed font-semibold mt-4">
                 ❌ Unacceptable Photos:
               </p>
               <ul className="list-disc pl-6 space-y-1 text-gray-700">

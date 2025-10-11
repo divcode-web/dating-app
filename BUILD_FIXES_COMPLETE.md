@@ -21,10 +21,16 @@ export default function BlogPage() {
 
 ---
 
-### 2. **Stories API Dynamic Server Error** ✅
-**Error**: `DYNAMIC_SERVER_USAGE` in production deployment
+### 2. **All API Routes Dynamic Server Errors** ✅
+**Error**: `DYNAMIC_SERVER_USAGE` errors in production deployment for multiple API routes
 
-**Fix Applied** to [app/api/stories/matches/route.ts](app/api/stories/matches/route.ts):
+**Fix Applied** to all API routes using `request.headers`:
+- [app/api/stories/matches/route.ts](app/api/stories/matches/route.ts)
+- [app/api/stories/debug/route.ts](app/api/stories/debug/route.ts)
+- [app/api/stories/upload/route.ts](app/api/stories/upload/route.ts)
+- [app/api/stories/[storyId]/route.ts](app/api/stories/[storyId]/route.ts)
+- [app/api/geolocation/route.ts](app/api/geolocation/route.ts)
+
 ```typescript
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -215,11 +221,64 @@ npm run start
 
 ---
 
+## Geolocation API 🌍
+
+### Endpoint: `/api/geolocation`
+
+Your app now has a working geolocation API that detects user location from their IP address.
+
+**Usage:**
+```typescript
+// Get user's location
+const response = await fetch('/api/geolocation');
+const location = await response.json();
+
+console.log(location);
+// {
+//   country: "United States",
+//   city: "San Francisco",
+//   lat: 37.7749,
+//   lon: -122.4194,
+//   timezone: "America/Los_Angeles"
+// }
+```
+
+**Use Cases:**
+1. Auto-fill location during onboarding
+2. Filter matches by distance
+3. Show local events/content
+4. Display timezone-aware features
+
+**Integration Example:**
+```typescript
+// In onboarding page
+useEffect(() => {
+  fetch('/api/geolocation')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.error) {
+        setLocation({
+          city: data.city,
+          country: data.country,
+          lat: data.lat,
+          lon: data.lon
+        });
+      }
+    });
+}, []);
+```
+
+---
+
 ## Support & Documentation
 
 ### SEO Configuration
 - Full guide: [SEO_CONFIGURATION_COMPLETE.md](SEO_CONFIGURATION_COMPLETE.md)
 - **SEO Score**: 91/100 🏆
+
+### API Routes
+- All routes fixed: [API_ROUTES_FIXED.md](API_ROUTES_FIXED.md)
+- Geolocation usage guide included
 
 ### Troubleshooting
 If you encounter build errors:

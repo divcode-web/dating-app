@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   description: 'Discover meaningful relationships with Lovento. AI-powered matching, verified profiles, and advanced features help you find your perfect match. Join thousands of singles finding love today.',
   keywords: ['dating app', 'online dating', 'find love', 'relationships', 'matchmaking', 'singles', 'romance', 'dating site', 'meet singles', 'lovento', 'premium dating', 'AI matching', 'verified profiles'],
   authors: [{ name: 'Lovento Team' }],
-  metadataBase: new URL('http://localhost:3004'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://loventodate.com'),
   manifest: '/manifest.json',
   verification: {
     google: 'P4LuTSwFTmEpUxRp-7qUQV-1hiTIfAVv7NwUQItDefg',
