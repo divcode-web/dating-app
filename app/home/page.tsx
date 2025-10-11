@@ -249,7 +249,7 @@ export default function HomePage() {
             </p>
             <Button
               onClick={() => router.push("/swipe")}
-              className="w-full bg-white text-pink-600 hover:bg-gray-100"
+              className="w-full !text-white font-semibold"
             >
               Start Swiping
             </Button>
@@ -263,7 +263,7 @@ export default function HomePage() {
             </p>
             <Button
               onClick={() => router.push("/matches")}
-              className="w-full bg-white text-blue-600 hover:bg-gray-100"
+              className="w-full !text-white font-semibold"
             >
               View Matches
             </Button>

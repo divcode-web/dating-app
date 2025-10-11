@@ -6,7 +6,16 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Heart, Calendar, Eye, Tag, Search, Flame } from "lucide-react";
+import {
+  Heart,
+  Calendar,
+  Eye,
+  Tag,
+  Search,
+  Flame,
+  Send,
+  ArrowLeft,
+} from "lucide-react";
 import { format } from "date-fns";
 import GoogleAdSense from "@/components/google-adsense";
 import { NewsletterSubscription } from "@/components/newsletter-subscription";
@@ -35,6 +44,14 @@ interface Category {
   name: string;
   slug: string;
   color: string;
+}
+
+// Helper to strip HTML tags from text
+function stripHtml(html: string): string {
+  if (!html) return "";
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || "";
 }
 
 export default function BlogPage() {
@@ -68,16 +85,18 @@ export default function BlogPage() {
       setLoading(true);
       let query = supabase
         .from("blog_posts")
-        .select(`
+        .select(
+          `
           *,
           category:blog_categories(name, slug, color),
           author:admin_users(id)
-        `)
+        `
+        )
         .eq("status", "published")
         .order("published_at", { ascending: false });
 
       if (selectedCategory) {
-        const category = categories.find(c => c.slug === selectedCategory);
+        const category = categories.find((c) => c.slug === selectedCategory);
         if (category) {
           query = query.eq("category_id", category.id);
         }
@@ -90,6 +109,30 @@ export default function BlogPage() {
       const { data, error } = await query;
 
       if (error) throw error;
+
+      console.log("Posts fetched:", data?.length || 0);
+      if (data && data.length > 0) {
+        console.log("First post sample:", {
+          title: data[0].title,
+          hasCategory: !!data[0].category,
+          categoryData: data[0].category,
+          categoryId: data[0].category_id,
+          rawPost: data[0],
+        });
+      }
+
+      // Check if ANY post has a category
+      const postsWithCategory =
+        data?.filter((p) => p.category && p.category.name).length || 0;
+      const postsWithCategoryId =
+        data?.filter((p) => p.category_id).length || 0;
+      console.log(
+        `Posts with category object: ${postsWithCategory}/${data?.length || 0}`
+      );
+      console.log(
+        `Posts with category_id: ${postsWithCategoryId}/${data?.length || 0}`
+      );
+
       setPosts(data || []);
     } catch (error) {
       console.error("Error fetching posts:", error);
@@ -98,11 +141,22 @@ export default function BlogPage() {
     }
   };
 
-  const featuredPost = posts.find(post => post.view_count > 100) || posts[0];
-  const regularPosts = posts.filter(post => post.id !== featuredPost?.id);
+  const featuredPost = posts.find((post) => post.view_count > 100) || posts[0];
+  const regularPosts = posts.filter((post) => post.id !== featuredPost?.id);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
+      {/* Back to Home Arrow */}
+      <div className="container mx-auto px-4 pt-6">
+        <button
+          onClick={() => router.push("/")}
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 transition-colors group"
+        >
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-medium">Home</span>
+        </button>
+      </div>
+
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white py-16">
         <div className="container mx-auto px-4">
@@ -132,6 +186,43 @@ export default function BlogPage() {
       </div>
 
       <div className="container mx-auto px-4 py-12">
+        {/* Telegram Channel CTA */}
+        <div className="mb-8 max-w-4xl mx-auto">
+          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 shadow-xl">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+                  <Send className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-1">
+                    Join Our Telegram Channel
+                  </h3>
+                  <p className="text-blue-50">
+                    Get daily dating tips, exclusive content, and relationship
+                    advice
+                  </p>
+                </div>
+              </div>
+              {/* TODO: Replace with your actual Telegram channel URL */}
+              <a
+                href="https://t.me/lovento_blog"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="whitespace-nowrap"
+              >
+                <Button
+                  size="lg"
+                  className="!text-white font-bold shadow-lg hover:shadow-xl hover:scale-105 transform transition-all"
+                >
+                  <Send className="w-5 h-5 mr-2" />
+                  Join Channel
+                </Button>
+              </a>
+            </div>
+          </Card>
+        </div>
+
         {/* Category Filter */}
         <div className="mb-8">
           <div className="flex flex-wrap gap-2 justify-center">
@@ -145,9 +236,13 @@ export default function BlogPage() {
             {categories.map((category) => (
               <Button
                 key={category.id}
-                variant={selectedCategory === category.slug ? "default" : "outline"}
+                variant={
+                  selectedCategory === category.slug ? "default" : "outline"
+                }
                 onClick={() => setSelectedCategory(category.slug)}
-                className={selectedCategory === category.slug ? "bg-pink-500" : ""}
+                className={
+                  selectedCategory === category.slug ? "bg-pink-500" : ""
+                }
               >
                 {category.name}
               </Button>
@@ -181,20 +276,33 @@ export default function BlogPage() {
                         )}
                       </div>
                       <div className="md:w-1/2 p-8">
-                        <div className="flex items-center gap-2 mb-4">
-                          <span
-                            className="px-3 py-1 rounded-full text-xs font-semibold text-white"
-                            style={{ backgroundColor: featuredPost.category?.color }}
-                          >
-                            {featuredPost.category?.name}
-                          </span>
-                        </div>
-                        <h3 className="text-3xl font-bold mb-4">{featuredPost.title}</h3>
-                        <p className="text-gray-600 mb-6 line-clamp-3">{featuredPost.excerpt}</p>
+                        {featuredPost.category &&
+                          featuredPost.category.name && (
+                            <div className="flex items-center gap-2 mb-4">
+                              <span
+                                className="px-3 py-1 rounded-full text-xs font-semibold text-white"
+                                style={{
+                                  backgroundColor:
+                                    featuredPost.category.color || "#6b7280",
+                                }}
+                              >
+                                {featuredPost.category.name}
+                              </span>
+                            </div>
+                          )}
+                        <h3 className="text-3xl font-bold mb-4">
+                          {featuredPost.title}
+                        </h3>
+                        <p className="text-gray-600 mb-6 line-clamp-3">
+                          {stripHtml(featuredPost.excerpt)}
+                        </p>
                         <div className="flex items-center gap-4 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
-                            {format(new Date(featuredPost.published_at), "MMM dd, yyyy")}
+                            {format(
+                              new Date(featuredPost.published_at),
+                              "MMM dd, yyyy"
+                            )}
                           </span>
                           <span className="flex items-center gap-1">
                             <Eye className="w-4 h-4" />
@@ -222,7 +330,12 @@ export default function BlogPage() {
               <GoogleAdSense
                 adSlot="1111111111"
                 adFormat="horizontal"
-                style={{ display: "block", minHeight: "100px", maxWidth: "970px", width: "100%" }}
+                style={{
+                  display: "block",
+                  minHeight: "100px",
+                  maxWidth: "970px",
+                  width: "100%",
+                }}
               />
             </div>
 
@@ -237,47 +350,61 @@ export default function BlogPage() {
                         <GoogleAdSense
                           adSlot="2222222222"
                           adFormat="fluid"
-                          style={{ display: "block", minHeight: "200px", width: "100%", maxWidth: "970px" }}
+                          style={{
+                            display: "block",
+                            minHeight: "200px",
+                            width: "100%",
+                            maxWidth: "970px",
+                          }}
                         />
                       </div>
                     )}
-                  <Link key={post.id} href={`/blog/${post.slug}`}>
-                    <Card className="overflow-hidden hover:shadow-xl transition cursor-pointer h-full">
-                      {post.featured_image && (
-                        <img
-                          src={post.featured_image}
-                          alt={post.title}
-                          className="w-full h-48 object-cover"
-                        />
-                      )}
-                      <div className="p-6">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span
-                            className="px-2 py-1 rounded-full text-xs font-semibold text-white"
-                            style={{ backgroundColor: post.category?.color }}
-                          >
-                            {post.category?.name}
-                          </span>
+                    <Link key={post.id} href={`/blog/${post.slug}`}>
+                      <Card className="overflow-hidden hover:shadow-xl transition cursor-pointer h-full">
+                        {post.featured_image && (
+                          <img
+                            src={post.featured_image}
+                            alt={post.title}
+                            className="w-full h-48 object-cover"
+                          />
+                        )}
+                        <div className="p-6">
+                          {post.category && post.category.name && (
+                            <div className="flex items-center gap-2 mb-3">
+                              <span
+                                className="px-2 py-1 rounded-full text-xs font-semibold text-white"
+                                style={{
+                                  backgroundColor:
+                                    post.category.color || "#6b7280",
+                                }}
+                              >
+                                {post.category.name}
+                              </span>
+                            </div>
+                          )}
+                          <h3 className="text-xl font-bold mb-3 line-clamp-2">
+                            {post.title}
+                          </h3>
+                          <p className="text-gray-600 mb-4 line-clamp-3 text-sm">
+                            {stripHtml(post.excerpt)}
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(post.published_at), "MMM dd")}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Eye className="w-3 h-3" />
+                              {post.view_count}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Heart className="w-3 h-3" />
+                              {post.like_count}
+                            </span>
+                          </div>
                         </div>
-                        <h3 className="text-xl font-bold mb-3 line-clamp-2">{post.title}</h3>
-                        <p className="text-gray-600 mb-4 line-clamp-3 text-sm">{post.excerpt}</p>
-                        <div className="flex items-center gap-3 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {format(new Date(post.published_at), "MMM dd")}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Eye className="w-3 h-3" />
-                            {post.view_count}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Heart className="w-3 h-3" />
-                            {post.like_count}
-                          </span>
-                        </div>
-                      </div>
-                    </Card>
-                  </Link>
+                      </Card>
+                    </Link>
                   </>
                 ))}
               </div>
@@ -299,12 +426,19 @@ export default function BlogPage() {
           </p>
           <div className="flex gap-4 justify-center">
             <Link href="/">
-              <Button size="lg" className="bg-white text-pink-500 hover:bg-gray-100">
+              <Button
+                size="lg"
+                className="bg-white text-pink-500 hover:bg-gray-100"
+              >
                 Get Started
               </Button>
             </Link>
             <Link href="/blog">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-white text-white hover:bg-white/10"
+              >
                 Read More Articles
               </Button>
             </Link>

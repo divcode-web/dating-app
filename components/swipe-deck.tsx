@@ -99,7 +99,7 @@ export function SwipeDeck({ profiles, onSwipe, onRefresh, isLoading }: SwipeDeck
         </div>
         <h3 className="text-xl font-semibold text-gray-800 mb-2">No more profiles</h3>
         <p className="text-gray-600 mb-6">Check back later for new matches!</p>
-        <Button onClick={handleRefresh} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700">
+        <Button onClick={handleRefresh} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white">
           <RotateCcw className="w-4 h-4 mr-2" />
           Refresh
         </Button>

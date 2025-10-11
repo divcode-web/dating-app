@@ -16,7 +16,8 @@ import {
   CheckCircle,
   MessageCircle,
   Camera,
-  MapPin
+  MapPin,
+  Send
 } from 'lucide-react'
 
 export function LandingPage() {
@@ -80,12 +81,14 @@ export function LandingPage() {
       <header className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Heart className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">DatingApp</h1>
+            <div className="flex items-center gap-0.5">
+              <img
+                src="/lovento-icon.png"
+                alt="Lovento Logo"
+                className="h-14 w-auto object-contain"
+              />
+              <div className="flex flex-col -space-y-0.5">
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">Lovento</h1>
                 <p className="text-sm text-gray-500">Find your perfect match</p>
               </div>
             </div>
@@ -96,7 +99,7 @@ export function LandingPage() {
               <Button variant="ghost" onClick={() => router.push('/auth')} className="hidden sm:inline-flex">
                 Sign In
               </Button>
-              <Button onClick={() => router.push('/auth')} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-sm sm:text-base px-3 sm:px-4">
+              <Button onClick={() => router.push('/auth')} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm sm:text-base px-3 sm:px-4">
                 Get Started
               </Button>
             </div>
@@ -154,8 +157,8 @@ export function LandingPage() {
             <div className="relative">
               <div className="relative bg-gradient-to-br from-pink-200 to-purple-200 rounded-3xl p-8 shadow-2xl">
                 <img
-                  src="https://images.unsplash.com/photo-1521737852567-6949f3f9f2b5?w=500"
-                  alt="Happy couple"
+                  src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800&q=80"
+                  alt="Romantic couple in love"
                   className="w-full h-96 object-cover rounded-2xl"
                 />
                 <div className="absolute -bottom-4 -right-4 bg-white rounded-2xl p-4 shadow-lg">
@@ -174,7 +177,7 @@ export function LandingPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white/50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose DatingApp?</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose Lovento?</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               We combine cutting-edge technology with human connection to create meaningful relationships.
             </p>
@@ -224,13 +227,13 @@ export function LandingPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-pink-500 to-purple-600">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-white mb-4">Ready to Find Love?</h2>
-          <p className="text-xl text-white/90 mb-8">
+          <p className="text-xl text-white mb-8">
             Join our community today and start your journey to finding the perfect match.
           </p>
           <Button
             size="lg"
             onClick={() => router.push('/auth')}
-            className="bg-white text-purple-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold"
+            className="!bg-gradient-to-r !from-purple-600 !to-blue-600 !text-white hover:!from-purple-700 hover:!to-blue-700 px-8 py-4 text-lg font-semibold shadow-xl hover:shadow-2xl"
           >
             Create Your Profile
             <Heart className="w-5 h-5 ml-2" />
@@ -253,7 +256,7 @@ export function LandingPage() {
                 <div className="text-white text-center">
                   <Play className="w-16 h-16 mx-auto mb-4" />
                   <p className="text-xl">Demo Video Coming Soon</p>
-                  <p className="text-gray-400">Watch how easy it is to find love on DatingApp</p>
+                  <p className="text-gray-400">Watch how easy it is to find love on Lovento</p>
                 </div>
               </div>
             </div>

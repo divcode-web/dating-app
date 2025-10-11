@@ -167,12 +167,14 @@ export function Dashboard() {
         <div className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Heart className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">DatingApp</h1>
+              <div className="flex items-center gap-1.5">
+                <img
+                  src="/lovento-icon.png"
+                  alt="Lovento Logo"
+                  className="h-12 w-auto object-contain"
+                />
+                <div className="flex flex-col -space-y-0.5">
+                  <h1 className="text-2xl font-bold text-gray-900 leading-tight">Lovento</h1>
                   <p className="text-sm text-gray-500">
                     Find your perfect match
                   </p>
@@ -497,7 +499,7 @@ function DiscoverTab({
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-blue-600" />
-                How to Use DatingApp
+                How to Use Lovento
               </CardTitle>
               <Button variant="ghost" size="icon" onClick={() => setShowTutorial(false)}>
                 <X className="w-4 h-4" />

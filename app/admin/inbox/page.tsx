@@ -273,7 +273,7 @@ export default function AdminInboxPage() {
                     <Button
                       onClick={handleSendMessage}
                       disabled={!newMessage.trim() || loading}
-                      className="bg-gradient-to-r from-pink-500 to-purple-600"
+                      className="bg-gradient-to-r from-pink-500 to-purple-600 text-white"
                     >
                       <Send className="w-4 h-4" />
                     </Button>

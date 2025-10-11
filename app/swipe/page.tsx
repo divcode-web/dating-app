@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { SwipeDeck } from "@/components/swipe-deck";
 import { getDiscoveryProfiles, createLike, getUserSettings } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
-import { Settings, Crown } from "lucide-react";
+import { Settings, Crown, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { UserProfile } from "@/lib/types";
 import { getSwipeLimitInfo, incrementSwipeCount, formatTimeRemaining, SwipeLimitInfo } from "@/lib/swipe-limits";
@@ -28,13 +29,39 @@ export default function SwipePage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [swipeLimitInfo, setSwipeLimitInfo] = useState<SwipeLimitInfo | null>(null);
+  const [lastSwipedProfile, setLastSwipedProfile] = useState<{profile: Profile, direction: string} | null>(null);
+  const [canRewind, setCanRewind] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
       loadProfiles();
       loadSwipeLimits();
+      checkRewindFeature();
     }
   }, [user?.id]);
+
+  const checkRewindFeature = async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('subscription_tier_id')
+        .eq('id', user.id)
+        .single();
+
+      if (data?.subscription_tier_id) {
+        const { data: tierData } = await supabase
+          .from('subscription_tiers')
+          .select('can_rewind_swipes')
+          .eq('id', data.subscription_tier_id)
+          .single();
+
+        setCanRewind(tierData?.can_rewind_swipes || false);
+      }
+    } catch (error) {
+      console.error('Error checking rewind feature:', error);
+    }
+  };
 
   const loadSwipeLimits = async () => {
     if (!user?.id) return;
@@ -84,8 +111,18 @@ export default function SwipePage() {
 
     // Check swipe limit
     if (swipeLimitInfo && !swipeLimitInfo.canSwipe) {
-      toast.error(`Out of swipes! Resets in ${formatTimeRemaining(swipeLimitInfo.resetAt!)}`);
+      toast.error(`Out of swipes! Resets in ${formatTimeRemaining(swipeLimitInfo.resetAt!)} or upgrade for unlimited`, {
+        duration: 5000,
+      });
+      // Show upgrade prompt
+      router.push('/premium?reason=swipes');
       return;
+    }
+
+    // Save last swiped profile for rewind
+    const swipedProfile = profiles.find(p => p.id === profileId);
+    if (swipedProfile && canRewind) {
+      setLastSwipedProfile({ profile: swipedProfile, direction });
     }
 
     try {
@@ -116,6 +153,29 @@ export default function SwipePage() {
       }
     } catch (error) {
       console.error("Error processing swipe:", error);
+    }
+  };
+
+  const handleRewind = async () => {
+    if (!lastSwipedProfile || !user?.id) return;
+
+    try {
+      // Delete the like if it was a right swipe or super like
+      if (lastSwipedProfile.direction === "right" || lastSwipedProfile.direction === "up") {
+        await supabase
+          .from('likes')
+          .delete()
+          .eq('liker_id', user.id)
+          .eq('liked_id', lastSwipedProfile.profile.id);
+      }
+
+      // Add profile back to the deck
+      setProfiles(prev => [lastSwipedProfile.profile, ...prev]);
+      setLastSwipedProfile(null);
+      toast.success('⏪ Swipe undone!');
+    } catch (error) {
+      console.error('Error rewinding swipe:', error);
+      toast.error('Failed to undo swipe');
     }
   };
 
@@ -180,6 +240,35 @@ export default function SwipePage() {
           onRefresh={loadProfiles}
           isLoading={loading}
         />
+
+        {/* Rewind Button */}
+        {canRewind && lastSwipedProfile && (
+          <div className="mt-4 flex justify-center">
+            <Button
+              onClick={handleRewind}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+              size="lg"
+            >
+              <RotateCcw className="w-5 h-5 mr-2" />
+              Undo Last Swipe
+            </Button>
+          </div>
+        )}
+
+        {/* Rewind Feature Locked - Show upgrade prompt */}
+        {!canRewind && lastSwipedProfile && (
+          <div className="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200 text-center">
+            <p className="text-sm text-gray-600 mb-2">Want to undo that swipe?</p>
+            <Button
+              onClick={() => router.push('/premium')}
+              className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600"
+              size="sm"
+            >
+              <Crown className="w-4 h-4 mr-1" />
+              Upgrade for Rewind
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -98,18 +98,20 @@ export default function AdminMessagingPage() {
     // Fetch user replies (where admin_id is null)
     const { data } = await supabase
       .from("admin_messages")
-      .select(`
+      .select(
+        `
         id,
         recipient_id,
         content,
         created_at,
         user_profile:user_profiles!recipient_id(full_name)
-      `)
+      `
+      )
       .is("admin_id", null)
       .order("created_at", { ascending: false })
       .limit(20);
 
-    setUserReplies(data as any || []);
+    setUserReplies((data as any) || []);
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -333,7 +335,7 @@ export default function AdminMessagingPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600"
+                className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white"
               >
                 <Send className="w-4 h-4 mr-2" />
                 {loading ? "Sending..." : "Send Message"}
@@ -411,7 +413,7 @@ export default function AdminMessagingPage() {
                 setFormData((prev) => ({
                   ...prev,
                   messageType: "welcome",
-                  subject: "Welcome to DatingApp!",
+                  subject: "Welcome to lovento!",
                   content: `Welcome to our dating app! 🎉
 
 We're excited to have you here. To get started:
@@ -480,7 +482,7 @@ All these features are designed to help you connect authentically with your matc
 Happy matching! ❤️
 
 Best regards,
-The DatingApp Team`,
+The lovento Team`,
                 }))
               }
             >

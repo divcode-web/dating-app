@@ -155,7 +155,7 @@ export default function AdminBlogPage() {
           <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your blog posts and content</p>
         </div>
         <Link href="/admin/blog/new">
-          <Button className="bg-gradient-to-r from-pink-500 to-purple-600">
+          <Button className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">
             <Plus className="w-4 h-4 mr-2" />
             New Post
           </Button>
@@ -241,7 +241,7 @@ export default function AdminBlogPage() {
           <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
           <p className="text-gray-600 mb-4">Create your first blog post to get started</p>
           <Link href="/admin/blog/new">
-            <Button className="bg-gradient-to-r from-pink-500 to-purple-600">
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">
               <Plus className="w-4 h-4 mr-2" />
               Create Post
             </Button>

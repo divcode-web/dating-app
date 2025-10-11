@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useGeolocation } from "@/components/geolocation-provider";
-import { MapPin, CheckCircle2, Download, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
+import { MapPin, CheckCircle2, Download, Trash2, AlertTriangle, RefreshCw, Crown, Gift } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { getLocationAccuracy } from "@/lib/matching-score";
@@ -43,6 +43,8 @@ export default function SettingsPage() {
   const [deleteCategory, setDeleteCategory] = useState("other");
   const [deleteFeedback, setDeleteFeedback] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [isRedeemingPromo, setIsRedeemingPromo] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -223,6 +225,42 @@ export default function SettingsPage() {
       toast.error("Failed to delete account");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleRedeemPromo = async () => {
+    if (!promoCode.trim()) {
+      toast.error('Please enter a promo code');
+      return;
+    }
+
+    try {
+      setIsRedeemingPromo(true);
+
+      const response = await fetch('/api/promo/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id,
+          promoCode: promoCode.trim(),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(`🎉 ${result.message}`);
+        setPromoCode('');
+        // Refresh user profile to show updated subscription
+        await fetchUserProfile(user?.id);
+      } else {
+        toast.error(result.error || 'Failed to redeem promo code');
+      }
+    } catch (error) {
+      console.error('Promo redemption error:', error);
+      toast.error('An error occurred while redeeming the promo code');
+    } finally {
+      setIsRedeemingPromo(false);
     }
   };
 
@@ -613,33 +651,154 @@ export default function SettingsPage() {
         <TabsContent value="premium" className="space-y-6">
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Premium Membership</h3>
-              <div className="p-8 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg text-white shadow-lg">
-                <h3 className="text-2xl font-bold mb-4">Unlock Premium Features</h3>
-                <ul className="space-y-3 mb-6">
-                  <li className="flex items-center space-x-2">
-                    <span className="text-xl">🤖</span>
-                    <span><strong>AI-Powered Matchmaking</strong> - Smart compatibility scoring</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <span className="text-xl">✨</span>
-                    <span>See who likes you</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <span className="text-xl">✨</span>
-                    <span>Unlimited swipes</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <span className="text-xl">✨</span>
-                    <span>Advanced filters</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <span className="text-xl">✨</span>
-                    <span>Priority support</span>
-                  </li>
-                </ul>
-                <Button className="w-full bg-white text-pink-500 hover:bg-gray-100 font-semibold">
-                  Upgrade to Premium
+              <h3 className="text-lg font-semibold mb-4">Subscription & Billing</h3>
+
+              {/* Current Plan */}
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Current Plan</h4>
+                    <p className="text-2xl font-bold mt-1">
+                      {(!userProfile?.subscription_tier_id || userProfile?.subscription_tier_id === 'free') && 'Free Plan'}
+                      {userProfile?.subscription_tier_id === 'basic_monthly' && 'Basic Monthly'}
+                      {userProfile?.subscription_tier_id === 'standard_3month' && 'Standard (3 Months)'}
+                      {userProfile?.subscription_tier_id === 'premium_yearly' && 'Premium VIP'}
+                    </p>
+                  </div>
+                  {userProfile?.subscription_tier_id && userProfile?.subscription_tier_id !== 'free' && (
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-6 h-6 text-yellow-500" />
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">Active</span>
+                    </div>
+                  )}
+                </div>
+
+                {(!userProfile?.subscription_tier_id || userProfile?.subscription_tier_id === 'free') ? (
+                  <div className="p-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg text-white">
+                    <p className="text-sm mb-3">Unlock premium features and get more matches!</p>
+                    <Button
+                      onClick={() => router.push('/premium')}
+                      className="w-full bg-white text-pink-500 hover:bg-gray-100 font-semibold"
+                    >
+                      View All Plans
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Status</span>
+                      <span className="font-medium">Premium Active</span>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <Button
+                        onClick={() => router.push('/premium')}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Change Plan
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Cancel Subscription
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Promo Code Redemption */}
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Gift className="w-5 h-5 text-pink-500" />
+                  <h4 className="font-semibold">Have a Promo Code?</h4>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Enter your promotional code to unlock premium features
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Enter promo code"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    className="flex-1 uppercase"
+                    disabled={isRedeemingPromo}
+                  />
+                  <Button
+                    onClick={handleRedeemPromo}
+                    disabled={isRedeemingPromo || !promoCode.trim()}
+                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+                  >
+                    {isRedeemingPromo ? (
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Redeeming...
+                      </div>
+                    ) : (
+                      'Redeem'
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Plan Comparison */}
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border">
+                <h4 className="font-semibold mb-4">All Available Plans</h4>
+                <div className="space-y-3">
+                  {/* Free */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-900">
+                    <div>
+                      <p className="font-medium">Free</p>
+                      <p className="text-xs text-gray-500">10 swipes/day • 11 messages/day</p>
+                    </div>
+                    <span className="text-lg font-bold">$0</span>
+                  </div>
+
+                  {/* Basic */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-pink-50 dark:bg-pink-900/20 border border-pink-200 dark:border-pink-800">
+                    <div>
+                      <p className="font-medium flex items-center gap-2">
+                        Basic Monthly
+                        <span className="text-xs bg-pink-600 text-white px-2 py-0.5 rounded-full">POPULAR</span>
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">50 swipes/day • Unlimited messages • Ad-free</p>
+                    </div>
+                    <span className="text-lg font-bold">$9.99/mo</span>
+                  </div>
+
+                  {/* Standard */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                    <div>
+                      <p className="font-medium flex items-center gap-2">
+                        Standard
+                        <span className="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full">SAVE 20%</span>
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Unlimited • See who likes • AI matching</p>
+                    </div>
+                    <span className="text-lg font-bold">$8/mo</span>
+                  </div>
+
+                  {/* Premium */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
+                    <div>
+                      <p className="font-medium flex items-center gap-2">
+                        <Crown className="w-4 h-4 text-yellow-600" />
+                        Premium VIP
+                        <span className="text-xs bg-yellow-600 text-white px-2 py-0.5 rounded-full">BEST VALUE</span>
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">All features • Priority support</p>
+                    </div>
+                    <span className="text-lg font-bold">$8.33/mo</span>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => router.push('/premium')}
+                  className="w-full mt-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+                >
+                  See Full Comparison
                 </Button>
               </div>
             </div>
@@ -844,7 +1003,7 @@ export default function SettingsPage() {
       </Dialog>
 
       <div className="mt-8 sticky bottom-0 bg-white dark:bg-gray-900 p-4 border-t">
-        <Button onClick={saveSettings} disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700">
+        <Button onClick={saveSettings} disabled={loading} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white">
           {loading ? "Saving..." : "Save All Settings"}
         </Button>
       </div>

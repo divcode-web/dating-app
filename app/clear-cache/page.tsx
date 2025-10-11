@@ -71,7 +71,7 @@ export default function ClearCachePage() {
             <Button
               onClick={clearCache}
               disabled={clearing}
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-600"
+              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white"
             >
               {clearing ? (
                 <>

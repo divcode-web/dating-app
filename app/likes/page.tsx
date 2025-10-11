@@ -139,7 +139,7 @@ export default function LikesPage() {
           </p>
           <Button
             onClick={() => router.push("/swipe")}
-            className="bg-gradient-to-r from-pink-500 to-purple-600"
+            className="bg-gradient-to-r from-pink-500 to-purple-600 text-white"
           >
             Start Swiping
           </Button>
@@ -190,7 +190,7 @@ export default function LikesPage() {
                   </Button>
                   <Button
                     onClick={() => handleLikeBack(like.id, like.from_user_id)}
-                    className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600"
+                    className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white"
                   >
                     <Heart className="w-4 h-4 mr-2" />
                     Like Back

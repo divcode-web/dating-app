@@ -405,6 +405,8 @@ export default function NewBlogPostPage() {
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Supports HTML. Use headings, paragraphs, lists, etc.
+                  <br />
+                  <span className="text-amber-600 font-medium">Note:</span> When using AI generation, the content is automatically filled. Don't paste the JSON response manually.
                 </p>
               </div>
             </div>
@@ -446,7 +448,7 @@ export default function NewBlogPostPage() {
               <Button
                 onClick={() => handleSubmit("published")}
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-pink-500 to-purple-600"
+                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white"
               >
                 <Eye className="w-4 h-4 mr-2" />
                 Publish Now

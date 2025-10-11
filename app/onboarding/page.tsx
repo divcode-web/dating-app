@@ -645,7 +645,7 @@ export default function OnboardingPage() {
           <Button
             onClick={handleNext}
             disabled={loading}
-            className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600"
+            className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white"
           >
             {currentStep === TOTAL_STEPS ? "Complete" : "Next"}
             {currentStep < TOTAL_STEPS && <ArrowRight className="w-4 h-4 ml-2" />}

@@ -1,0 +1,11 @@
+# Apple Touch Icon (180x180)
+# To generate this properly, you need to:
+# 1. Open the icon.svg file in a design tool (Figma, Adobe Illustrator, or Inkscape)
+# 2. Export as PNG at 180x180px
+# 3. Save as apple-touch-icon.png
+
+# Alternative: Use an online converter like https://convertio.co/svg-png/
+# Or use this command if you have ImageMagick installed:
+# convert -background none -resize 180x180 icon.svg apple-touch-icon.png
+
+# For now, you can use the icon.svg as a placeholder in modern browsers

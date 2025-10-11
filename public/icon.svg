@@ -1,5 +1,19 @@
-<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" fill="#ec4899"/>
-  <path d="M256 400c-88 0-160-72-160-160 0-88 72-160 160-160s160 72 160 160c0 88-72 160-160 160z" fill="#ffffff" opacity="0.2"/>
-  <text x="256" y="300" font-family="Arial, sans-serif" font-size="200" fill="#ffffff" text-anchor="middle" font-weight="bold">♥</text>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient Background -->
+  <rect width="512" height="512" rx="112" fill="url(#gradient)"/>
+
+  <!-- Heart Icon -->
+  <path d="M256 432L236.8 414.24C162.72 346.56 104 288.64 104 218.88C104 163.84 147.84 120 202.88 120C231.68 120 259.52 133.76 276 156.16C292.48 133.76 320.32 120 349.12 120C404.16 120 448 163.84 448 218.88C448 288.64 389.28 346.56 315.2 414.24L256 432Z" fill="white" opacity="0.95"/>
+
+  <!-- Letter 'L' -->
+  <text x="256" y="330" font-family="'Inter', 'Arial', sans-serif" font-size="220" font-weight="800" fill="white" text-anchor="middle" dominant-baseline="middle">L</text>
+
+  <!-- Gradient Definition -->
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ec4899;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#d946ef;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9333ea;stop-opacity:1" />
+    </linearGradient>
+  </defs>
 </svg>

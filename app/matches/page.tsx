@@ -86,7 +86,7 @@ export default function MatchesPage() {
           </p>
           <Button
             onClick={() => router.push("/swipe")}
-            className="bg-gradient-to-r from-pink-500 to-purple-600"
+            className="bg-gradient-to-r from-pink-500 to-purple-600 text-white"
           >
             Start Swiping
           </Button>
@@ -145,7 +145,7 @@ export default function MatchesPage() {
                 </div>
                 <Button
                   onClick={() => router.push(`/messages`)}
-                  className="w-full bg-gradient-to-r from-pink-500 to-purple-600"
+                  className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white"
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
                   Send Message

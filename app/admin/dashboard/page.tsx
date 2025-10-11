@@ -203,10 +203,12 @@ export default function AdminDashboard() {
         .from("user_profiles")
         .select("*", { count: "exact", head: true });
 
+      // Count premium users (any tier except free)
       const { count: premiumUsers } = await supabase
         .from("user_profiles")
         .select("*", { count: "exact", head: true })
-        .eq("is_premium", true);
+        .neq("subscription_tier_id", "free")
+        .not("subscription_tier_id", "is", null);
 
       const { count: verifiedUsers } = await supabase
         .from("user_profiles")

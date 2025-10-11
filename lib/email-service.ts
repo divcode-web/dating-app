@@ -33,7 +33,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: options.from || 'DatingApp <noreply@yourdomain.com>',
+        from: options.from || 'lovento <noreply@yourdomain.com>',
         to: options.to,
         subject: options.subject,
         html: options.html,
@@ -77,7 +77,7 @@ export async function sendDeletionConfirmation(email: string, reason?: string) {
           </div>
           <div class="content">
             <p>Hello,</p>
-            <p>Your DatingApp account has been permanently deleted as requested.</p>
+            <p>Your lovento account has been permanently deleted as requested.</p>
 
             <p><strong>What was deleted:</strong></p>
             <ul>
@@ -93,10 +93,10 @@ export async function sendDeletionConfirmation(email: string, reason?: string) {
 
             <p>Thank you for being part of our community.</p>
 
-            <p>Best regards,<br>The DatingApp Team</p>
+            <p>Best regards,<br>The lovento Team</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} DatingApp. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} lovento. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -105,7 +105,7 @@ export async function sendDeletionConfirmation(email: string, reason?: string) {
 
   return sendEmail({
     to: email,
-    subject: 'Your DatingApp account has been deleted',
+    subject: 'Your lovento account has been deleted',
     html,
   });
 }
@@ -151,7 +151,7 @@ export async function sendMatchNotification(email: string, matchName: string) {
             </p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} DatingApp. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} lovento. All rights reserved.</p>
             <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/settings">Manage email preferences</a></p>
           </div>
         </div>
@@ -203,7 +203,7 @@ export async function sendMessageNotification(email: string, senderName: string,
             </div>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} DatingApp. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} lovento. All rights reserved.</p>
             <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/settings">Manage email preferences</a></p>
           </div>
         </div>
@@ -245,7 +245,7 @@ export async function sendAccountSuspendedNotification(
             <h1>⚠️ Account Suspended</h1>
           </div>
           <div class="content">
-            <p>Your DatingApp account has been suspended.</p>
+            <p>Your lovento account has been suspended.</p>
 
             <div class="warning">
               <p><strong>Reason:</strong> ${reason}</p>
@@ -259,12 +259,12 @@ export async function sendAccountSuspendedNotification(
             <p><strong>What you can do:</strong></p>
             <ul>
               <li>Review our <a href="${process.env.NEXT_PUBLIC_APP_URL}/community-guidelines">Community Guidelines</a></li>
-              <li>Contact support: support@datingapp.com</li>
+              <li>Contact support: support@lovento.com</li>
               ${suspendedUntil ? '<li>Wait for the suspension period to end</li>' : ''}
             </ul>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} DatingApp. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} lovento. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -273,7 +273,7 @@ export async function sendAccountSuspendedNotification(
 
   return sendEmail({
     to: email,
-    subject: 'Your DatingApp account has been suspended',
+    subject: 'Your lovento account has been suspended',
     html,
   });
 }

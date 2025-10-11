@@ -215,7 +215,7 @@ export function StoryUpload({ onClose, onUploadComplete }: StoryUploadProps) {
                 <Button
                   onClick={handleUpload}
                   disabled={uploading}
-                  className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+                  className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
                 >
                   {uploading ? (
                     <>

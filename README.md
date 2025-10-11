@@ -1,10 +1,11 @@
-# DatingApp - Modern Dating Platform
+# lovento - Modern Dating Platform
 
 A fully-featured dating website built with Next.js 14, Supabase, and modern web technologies. This application provides a Tinder-like experience with user profiles, swiping, matching, messaging, premium subscriptions, and comprehensive admin functionality.
 
 ## ✨ Features
 
 ### Core Features
+
 - **User Authentication**: Secure signup/login with email verification
 - **Profile Management**: Complete user profiles with photos, bio, interests, and preferences
 - **Smart Matching**: Advanced algorithm for finding compatible matches
@@ -14,6 +15,7 @@ A fully-featured dating website built with Next.js 14, Supabase, and modern web 
 - **Admin Dashboard**: Complete user management and analytics
 
 ### User Experience
+
 - **Responsive Design**: Works perfectly on desktop and mobile
 - **Intuitive Swiping**: Tinder-like card interface
 - **Real-time Notifications**: Instant updates for matches and messages
@@ -22,6 +24,7 @@ A fully-featured dating website built with Next.js 14, Supabase, and modern web 
 - **Safety Features**: User reporting and blocking system
 
 ### Admin Features
+
 - **User Management**: View, edit, and manage all users
 - **Analytics Dashboard**: Comprehensive usage statistics
 - **Content Moderation**: Review and moderate user content
@@ -31,6 +34,7 @@ A fully-featured dating website built with Next.js 14, Supabase, and modern web 
 ## 🛠 Technology Stack
 
 ### Frontend
+
 - **Next.js 14** - React framework with App Router
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first styling
@@ -40,6 +44,7 @@ A fully-featured dating website built with Next.js 14, Supabase, and modern web 
 - **Zustand** - Client state management
 
 ### Backend & Database
+
 - **Supabase** - Backend-as-a-Service
   - PostgreSQL database
   - Real-time subscriptions
@@ -48,6 +53,7 @@ A fully-featured dating website built with Next.js 14, Supabase, and modern web 
   - Row Level Security (RLS)
 
 ### Payment & Services
+
 - **Stripe** - Payment processing for subscriptions
 - **React Geolocated** - Geolocation services
 - **React Dropzone** - File uploads
@@ -56,6 +62,7 @@ A fully-featured dating website built with Next.js 14, Supabase, and modern web 
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js 18+ and npm
 - A Supabase project with PostGIS extension enabled
 - Stripe account (for payments)
@@ -63,22 +70,26 @@ A fully-featured dating website built with Next.js 14, Supabase, and modern web 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <your-repo-url>
    cd dating-app
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp .env.example .env.local
    ```
 
    Fill in your environment variables:
+
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
@@ -87,6 +98,7 @@ A fully-featured dating website built with Next.js 14, Supabase, and modern web 
    ```
 
 4. **Set up Supabase database**
+
    ```bash
    # Enable PostGIS extension first
    # Go to your Supabase dashboard > SQL Editor
@@ -97,6 +109,7 @@ A fully-featured dating website built with Next.js 14, Supabase, and modern web 
    ```
 
 5. **Run the development server**
+
    ```bash
    npm run dev
    ```
@@ -165,31 +178,37 @@ dating-app/
 ## 🎯 Key Features Implementation
 
 ### User Authentication
+
 - Email/password authentication via Supabase Auth
 - Protected routes and middleware
 - Session management with automatic refresh
 
 ### Profile Management
+
 - Complete user profiles with photos and preferences
 - Image upload with cropping and optimization
 - Location services for geolocation features
 
 ### Matching Algorithm
+
 - Distance-based matching
 - Interest compatibility scoring
 - Preference filtering (age, gender, etc.)
 
 ### Real-time Messaging
+
 - WebSocket connections via Supabase Realtime
 - Message history and read receipts
 - Typing indicators and presence
 
 ### Premium Subscriptions
+
 - Stripe integration for payment processing
 - Feature gating based on subscription status
 - Webhook handling for subscription events
 
 ### Admin Dashboard
+
 - User management interface
 - Analytics and reporting
 - Content moderation tools
@@ -205,6 +224,7 @@ dating-app/
 ## 📱 Responsive Design
 
 The application is fully responsive and optimized for:
+
 - **Mobile devices** (320px and up)
 - **Tablets** (768px and up)
 - **Desktop** (1024px and up)
@@ -221,6 +241,7 @@ The application is fully responsive and optimized for:
 ### Manual Deployment
 
 1. **Build the application**
+
    ```bash
    npm run build
    ```
@@ -258,6 +279,7 @@ The application uses the following main tables:
 ## 📊 Analytics & Monitoring
 
 The admin dashboard provides insights into:
+
 - User registration trends
 - Match success rates
 - Geographic user distribution
@@ -298,6 +320,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🆘 Support
 
 For support and questions:
+
 - Create an issue in the repository
 - Contact the development team
 

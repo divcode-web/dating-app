@@ -102,19 +102,43 @@ Make it authentic, helpful, and engaging for people navigating the dating world.
     // Try to extract JSON from the response
     let blogData
     try {
-      // Remove markdown code blocks if present
-      const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      // Remove markdown code blocks if present (handle multiple variations)
+      let cleanText = text.trim()
+
+      // Remove markdown code block markers
+      cleanText = cleanText
+        .replace(/^```json\s*\n?/i, '')  // Remove opening ```json
+        .replace(/^```\s*\n?/i, '')      // Remove opening ```
+        .replace(/\n?```\s*$/i, '')      // Remove closing ```
+        .trim()
+
       blogData = JSON.parse(cleanText)
     } catch (parseError) {
       console.error('JSON parse error:', parseError, 'Raw text:', text)
-      // If JSON parsing fails, create a structured response
-      blogData = {
-        title: topic,
-        excerpt: text.substring(0, 200) + '...',
-        content: text.replace(/\n\n/g, '</p><p>').replace(/^/, '<p>').replace(/$/, '</p>'),
-        tags: ['dating', 'relationships', 'love'],
-        meta_description: text.substring(0, 155) + '...',
-        image_query: 'couple dating love romance'
+
+      // Try one more time with more aggressive cleaning
+      try {
+        // Remove everything before first { and after last }
+        const startIndex = text.indexOf('{')
+        const endIndex = text.lastIndexOf('}')
+
+        if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+          const extractedJson = text.substring(startIndex, endIndex + 1)
+          blogData = JSON.parse(extractedJson)
+        } else {
+          throw new Error('Could not find valid JSON in response')
+        }
+      } catch (secondParseError) {
+        console.error('Second parse attempt failed:', secondParseError)
+        // If JSON parsing fails, create a structured response
+        blogData = {
+          title: topic,
+          excerpt: text.substring(0, 200) + '...',
+          content: text.replace(/\n\n/g, '</p><p>').replace(/^/, '<p>').replace(/$/, '</p>'),
+          tags: ['dating', 'relationships', 'love'],
+          meta_description: text.substring(0, 155) + '...',
+          image_query: 'couple dating love romance'
+        }
       }
     }
 

@@ -1,13 +1,25 @@
 {
-  "name": "Dating App",
-  "short_name": "Dating",
+  "name": "Lovento - Premium Dating App",
+  "short_name": "Lovento",
   "version": "1.0.0",
-  "description": "Find your perfect match",
+  "description": "Where real connections begin. AI-powered matching for meaningful relationships.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ec4899",
   "icons": [
+    {
+      "src": "/lovento-icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/lovento-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "/icon.svg",
       "sizes": "any",
