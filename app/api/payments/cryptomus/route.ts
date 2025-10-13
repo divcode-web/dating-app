@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic'
@@ -6,10 +7,26 @@ export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, amount } = await request.json()
+    // Get user from session instead of request body
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
 
-    if (!userId || !amount) {
-      return NextResponse.json({ error: 'User ID and amount are required' }, { status: 400 })
+    const token = authHeader.split(' ')[1]
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 })
+    }
+
+    const userId = user.id
+    console.log('Authenticated user:', userId)
+
+    const { amount } = await request.json()
+
+    if (!amount) {
+      return NextResponse.json({ error: 'Amount is required' }, { status: 400 })
     }
 
     // Create order ID with user ID embedded

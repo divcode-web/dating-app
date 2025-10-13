@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Crown, Zap, Heart, Star, Globe, X, Shield, Sparkles, TrendingUp, Bitcoin, CreditCard } from "lucide-react";
 import { getSubscriptionTiers, type SubscriptionTier } from "@/lib/subscription-limits";
 import { getUserProfile } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import { useSearchParams } from "next/navigation";
 
@@ -90,7 +91,10 @@ export default function PremiumPage() {
   };
 
   const handlePaymentProvider = async (providerId: string, tier: SubscriptionTier) => {
-    if (!tier || !user?.id) return;
+    if (!tier || !user?.id) {
+      toast.error('Please log in to continue');
+      return;
+    }
 
     // Handle crypto provider selection
     if (providerId === 'crypto') {
@@ -101,35 +105,45 @@ export default function PremiumPage() {
     try {
       setLoading(true);
 
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Authentication required. Please log in again.');
+        return;
+      }
+
       let endpoint = '/api/payments/create-checkout';
       let body: any = {
         provider: providerId,
         tierId: tier.id,
-        userId: user.id,
       };
 
       // Use direct endpoints for crypto payments
       if (providerId === 'nowpayments') {
         endpoint = '/api/payments/nowpayments';
         body = {
-          userId: user.id,
           amount: tier.price,
         };
       } else if (providerId === 'cryptomus') {
         endpoint = '/api/payments/cryptomus';
         body = {
-          userId: user.id,
           amount: tier.price,
         };
       }
 
+      console.log('Making payment request:', { endpoint, body });
+
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify(body),
       });
 
       const data = await response.json();
+      console.log('Payment response:', { status: response.status, data });
 
       if (data.checkoutUrl) {
         // Redirect to checkout

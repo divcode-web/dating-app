@@ -7,21 +7,40 @@ export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, planId = 'premium', amount = 9.99 } = await request.json()
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
+    // Get user from session instead of request body
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    // Verify user exists and is authenticated
-    const { data: user, error: userError } = await supabase
+    const token = authHeader.split(' ')[1]
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 })
+    }
+
+    const userId = user.id
+    console.log('Authenticated user:', userId)
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('id, email')
       .eq('id', userId)
       .single()
 
-    if (userError || !user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    if (profileError || !profile) {
+      console.error('Profile lookup failed:', { userId, profileError })
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
+    }
+
+    // Get amount from request body
+    const body = await request.json()
+    const { amount } = body
+
+    if (!amount) {
+      return NextResponse.json({ error: 'Amount is required' }, { status: 400 })
     }
 
     // Create order ID with user ID embedded
