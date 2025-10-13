@@ -87,6 +87,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Cryptomus Meta Tag */}
+        <meta name="cryptomus" content="ea2e2de3" />
+
         {/* Structured Data for SEO */}
         <script
           type="application/ld+json"

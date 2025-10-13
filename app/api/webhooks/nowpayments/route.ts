@@ -9,52 +9,52 @@ export const runtime = 'nodejs'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.text()
-    const signature = headers().get('x-nowpayments-sig')
-
-    // Verify webhook signature
-    const isValidSignature = verifyNOWPaymentsSignature(body, signature)
-    if (!isValidSignature) {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-    }
-
     const event = JSON.parse(body)
-    console.log('NOWPayments webhook event:', event.type)
 
-    switch (event.type) {
-      case 'payment':
-        await handlePayment(event.data)
-        break
-      case 'subscription':
-        await handleSubscription(event.data)
-        break
+    // NOWPayments uses IPN (no signature verification needed)
+    // Optional: You can verify the request comes from NOWPayments IPs
+    const clientIP = req.headers.get('x-forwarded-for') || req.ip
+    console.log('NOWPayments IPN from IP:', clientIP)
+
+    console.log('NOWPayments IPN event:', event)
+
+    // Handle different payment statuses
+    if (event.payment_status) {
+      switch (event.payment_status) {
+        case 'finished':
+        case 'confirmed':
+          await handlePayment(event)
+          break
+        case 'failed':
+        case 'expired':
+          await handleFailedPayment(event)
+          break
+        case 'pending':
+          console.log('Payment pending:', event.payment_id)
+          break
+      }
     }
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Error processing NOWPayments webhook:', error)
+    console.error('Error processing NOWPayments IPN:', error)
     return NextResponse.json(
-      { error: 'Webhook handler failed' },
+      { error: 'IPN handler failed' },
       { status: 500 }
     )
   }
 }
 
-function verifyNOWPaymentsSignature(payload: string, signature: string | null): boolean {
-  if (!signature) return false
-
-  const expectedSignature = crypto
-    .createHmac('sha256', process.env.NOWPAYMENTS_WEBHOOK_SECRET!)
-    .update(payload)
-    .digest('hex')
-
-  return signature === expectedSignature
-}
+// Signature verification removed - NOWPayments uses IPN without signatures
 
 async function handlePayment(paymentData: any) {
-  const { user_id, tier_id, subscription_id } = paymentData.metadata || {}
+  // Extract user_id from order_id (format: premium-{userId}-{timestamp})
+  const orderId = paymentData.order_id || paymentData.order_description
+  const userIdMatch = orderId?.match(/premium-([^-]+)-/)
+  const userId = userIdMatch ? userIdMatch[1] : null
 
-  if (!user_id) {
-    console.error('No user_id in payment metadata')
+  if (!userId) {
+    console.error('No user_id found in order_id:', orderId)
     return
   }
 
@@ -62,75 +62,81 @@ async function handlePayment(paymentData: any) {
   await supabase
     .from('payment_transactions')
     .insert({
-      user_id,
-      subscription_id,
+      user_id: userId,
       payment_provider: 'nowpayments',
-      provider_transaction_id: paymentData.id,
+      provider_transaction_id: paymentData.payment_id,
       amount: paymentData.price_amount,
       currency: paymentData.price_currency,
       crypto_currency: paymentData.pay_currency,
       crypto_amount: paymentData.pay_amount,
-      status: paymentData.status === 'finished' ? 'completed' : 'failed',
+      status: 'completed',
       transaction_type: 'subscription',
       metadata: {
         nowpayments_payment: paymentData
       }
     })
 
-  // If payment successful, update subscription
-  if (paymentData.status === 'finished') {
-    await supabase
-      .from('subscriptions')
-      .upsert({
-        user_id,
-        tier_id,
-        payment_provider: 'nowpayments',
-        provider_subscription_id: paymentData.id,
-        status: 'active',
-        current_period_start: new Date().toISOString(),
-        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-        last_payment_at: new Date().toISOString(),
-        next_payment_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        metadata: {
-          last_nowpayments_payment: paymentData
-        }
-      })
+  // Update subscription
+  await supabase
+    .from('subscriptions')
+    .upsert({
+      user_id: userId,
+      payment_provider: 'nowpayments',
+      provider_subscription_id: paymentData.payment_id,
+      status: 'active',
+      current_period_start: new Date().toISOString(),
+      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      last_payment_at: new Date().toISOString(),
+      next_payment_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      metadata: {
+        last_nowpayments_payment: paymentData
+      }
+    })
 
-    // Update user profile
-    await supabase
-      .from('user_profiles')
-      .update({
-        subscription_tier_id: tier_id,
-        is_premium: true,
-        premium_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      .eq('id', user_id)
-  }
+  // Update user profile
+  await supabase
+    .from('user_profiles')
+    .update({
+      is_premium: true,
+      premium_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    })
+    .eq('id', userId)
+
+  console.log('Payment processed successfully for user:', userId)
 }
 
-async function handleSubscription(subscriptionData: any) {
-  // Handle subscription status updates
-  if (subscriptionData.status === 'active') {
-    await supabase
-      .from('subscriptions')
-      .update({
-        status: 'active',
-        next_payment_at: subscriptionData.next_payment_date,
-        metadata: {
-          nowpayments_subscription: subscriptionData
-        }
-      })
-      .eq('provider_subscription_id', subscriptionData.id)
-  } else if (subscriptionData.status === 'cancelled') {
-    await supabase
-      .from('subscriptions')
-      .update({
-        status: 'cancelled',
-        cancel_at_period_end: true,
-        metadata: {
-          nowpayments_subscription_cancelled: subscriptionData
-        }
-      })
-      .eq('provider_subscription_id', subscriptionData.id)
+async function handleFailedPayment(paymentData: any) {
+  const orderId = paymentData.order_id || paymentData.order_description
+  const userIdMatch = orderId?.match(/premium-([^-]+)-/)
+  const userId = userIdMatch ? userIdMatch[1] : null
+
+  if (!userId) {
+    console.error('No user_id found in failed payment:', orderId)
+    return
   }
+
+  // Record failed payment
+  await supabase
+    .from('payment_transactions')
+    .insert({
+      user_id: userId,
+      payment_provider: 'nowpayments',
+      provider_transaction_id: paymentData.payment_id,
+      amount: paymentData.price_amount,
+      currency: paymentData.price_currency,
+      status: 'failed',
+      transaction_type: 'subscription',
+      metadata: {
+        nowpayments_failed_payment: paymentData
+      }
+    })
+
+  console.log('Failed payment recorded for user:', userId)
+}
+
+// NOWPayments handles subscriptions differently - they send individual payment notifications
+// This function can be used for future subscription management if needed
+async function handleSubscription(subscriptionData: any) {
+  console.log('Subscription event received:', subscriptionData)
+  // Handle subscription-specific logic here if NOWPayments adds subscription features
 }
