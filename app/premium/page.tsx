@@ -19,11 +19,15 @@ const paymentProviders = [
     type: 'fiat' as const,
   },
   {
-    id: 'cryptomus',
-    name: 'Cryptocurrency',
-    description: 'BTC, ETH, USDT & more',
+    id: 'crypto',
+    name: 'Pay with Crypto',
+    description: 'BTC, ETH, USDT & 400+ cryptocurrencies',
     icon: Bitcoin,
     type: 'crypto' as const,
+    subOptions: [
+      { id: 'nowpayments', name: 'NOWPayments', description: '100+ cryptocurrencies' },
+      { id: 'cryptomus', name: 'Cryptomus', description: '400+ cryptocurrencies' },
+    ],
   },
 ];
 
@@ -47,6 +51,8 @@ export default function PremiumPage() {
   const [loading, setLoading] = useState(false);
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
   const [currentTier, setCurrentTier] = useState<string>('free');
+  const [selectedCryptoProvider, setSelectedCryptoProvider] = useState<string | null>(null);
+  const [showCryptoOptions, setShowCryptoOptions] = useState(false);
 
   useEffect(() => {
     loadTiers();
@@ -86,17 +92,41 @@ export default function PremiumPage() {
   const handlePaymentProvider = async (providerId: string, tier: SubscriptionTier) => {
     if (!tier || !user?.id) return;
 
+    // Handle crypto provider selection
+    if (providerId === 'crypto') {
+      setShowCryptoOptions(true);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const response = await fetch(`/api/payments/create-checkout`, {
+      let endpoint = '/api/payments/create-checkout';
+      let body: any = {
+        provider: providerId,
+        tierId: tier.id,
+        userId: user.id,
+      };
+
+      // Use direct endpoints for crypto payments
+      if (providerId === 'nowpayments') {
+        endpoint = '/api/payments/nowpayments';
+        body = {
+          userId: user.id,
+          amount: tier.price,
+        };
+      } else if (providerId === 'cryptomus') {
+        endpoint = '/api/payments/cryptomus';
+        body = {
+          userId: user.id,
+          amount: tier.price,
+        };
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: providerId,
-          tierId: tier.id,
-          userId: user.id,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -105,7 +135,7 @@ export default function PremiumPage() {
         // Redirect to checkout
         window.location.href = data.checkoutUrl;
       } else {
-        toast.error('Failed to create checkout session');
+        toast.error(data.error || 'Failed to create checkout session');
       }
     } catch (error) {
       console.error('Error creating checkout:', error);
@@ -113,6 +143,12 @@ export default function PremiumPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCryptoProviderSelect = async (providerId: string, tier: SubscriptionTier) => {
+    setSelectedCryptoProvider(providerId);
+    setShowCryptoOptions(false);
+    await handlePaymentProvider(providerId, tier);
   };
 
   const getFeaturesList = (tier: SubscriptionTier): string[] => {
@@ -343,6 +379,11 @@ export default function PremiumPage() {
                                     <div className="font-semibold text-sm text-gray-900 dark:text-white">
                                       {provider.name}
                                     </div>
+                                    {provider.description && (
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        {provider.description}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-1">
@@ -361,6 +402,55 @@ export default function PremiumPage() {
                             );
                           })}
                         </div>
+
+                        {/* Crypto Provider Selection Modal */}
+                        {showCryptoOptions && (
+                          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full">
+                              <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                  Choose Crypto Provider
+                                </h3>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setShowCryptoOptions(false)}
+                                  className="text-gray-500 hover:text-gray-700"
+                                >
+                                  <X className="w-5 h-5" />
+                                </Button>
+                              </div>
+
+                              <div className="space-y-3">
+                                {paymentProviders
+                                  .find(p => p.id === 'crypto')
+                                  ?.subOptions?.map((subOption) => (
+                                    <Button
+                                      key={subOption.id}
+                                      onClick={() => handleCryptoProviderSelect(subOption.id, tier)}
+                                      disabled={loading}
+                                      variant="outline"
+                                      className="w-full h-auto py-4 px-4 flex items-center justify-between hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-500 transition-all"
+                                    >
+                                      <div className="text-left">
+                                        <div className="font-semibold text-sm text-gray-900 dark:text-white">
+                                          {subOption.name}
+                                        </div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                          {subOption.description}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded">
+                                          Crypto
+                                        </span>
+                                      </div>
+                                    </Button>
+                                  ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {savings && (

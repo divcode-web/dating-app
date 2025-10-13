@@ -11,8 +11,11 @@ export async function POST(request: NextRequest) {
     // Create order ID with user ID embedded
     const orderId = `premium-${userId}-${Date.now()}`
 
+    // Ensure minimum amount to avoid NOWPayments minimum error
+    const minAmount = Math.max(amount, 1.0); // Minimum $1.00 to avoid crypto minimum issues
+
     const paymentPayload = {
-      price_amount: amount,
+      price_amount: minAmount,
       price_currency: 'usd',
       pay_currency: 'btc', // Default to BTC, user can change
       ipn_callback_url: process.env.NOWPAYMENTS_IPN_URL || `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/nowpayments`,
