@@ -5,6 +5,11 @@ import { checkRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit'
 export async function middleware(request: NextRequest) {
   // Apply rate limiting only to API routes
   if (request.nextUrl.pathname.startsWith('/api/')) {
+    // Skip rate limiting for payment webhooks (they need to be fast)
+    if (request.nextUrl.pathname.startsWith('/api/webhooks/')) {
+      return NextResponse.next()
+    }
+
     const forwarded = request.headers.get('x-forwarded-for')
     const ip = request.ip || null
     const identifier = getRateLimitIdentifier(ip, forwarded)

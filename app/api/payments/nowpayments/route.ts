@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
@@ -6,6 +11,17 @@ export async function POST(request: NextRequest) {
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
+    }
+
+    // Verify user exists and is authenticated
+    const { data: user, error: userError } = await supabase
+      .from('user_profiles')
+      .select('id, email')
+      .eq('id', userId)
+      .single()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     // Create order ID with user ID embedded
@@ -25,10 +41,19 @@ export async function POST(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/premium/cancel`,
     }
 
+    // Check if NOWPayments API key is configured
+    if (!process.env.NOWPAYMENTS_API_KEY) {
+      console.error('NOWPAYMENTS_API_KEY not configured')
+      return NextResponse.json(
+        { error: 'Payment service not configured. Please contact support.' },
+        { status: 503 }
+      )
+    }
+
     const response = await fetch('https://api.nowpayments.io/v1/payment', {
       method: 'POST',
       headers: {
-        'x-api-key': process.env.NOWPAYMENTS_API_KEY!,
+        'x-api-key': process.env.NOWPAYMENTS_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(paymentPayload),
@@ -36,9 +61,9 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const error = await response.text()
-      console.error('NOWPayments API error:', error)
+      console.error('NOWPayments API error:', response.status, error)
       return NextResponse.json(
-        { error: 'Payment creation failed' },
+        { error: `Payment creation failed: ${error}` },
         { status: response.status }
       )
     }
