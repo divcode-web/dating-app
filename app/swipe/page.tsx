@@ -7,7 +7,8 @@ import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
-import { Settings, Crown, RotateCcw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Settings, Crown, RotateCcw, Globe, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { UserProfile } from "@/lib/types";
 import { getSwipeLimitInfo, incrementSwipeCount, formatTimeRemaining, SwipeLimitInfo } from "@/lib/swipe-limits";
@@ -31,12 +32,15 @@ export default function SwipePage() {
   const [swipeLimitInfo, setSwipeLimitInfo] = useState<SwipeLimitInfo | null>(null);
   const [lastSwipedProfile, setLastSwipedProfile] = useState<{profile: Profile, direction: string} | null>(null);
   const [canRewind, setCanRewind] = useState(false);
+  const [hasGlobalDating, setHasGlobalDating] = useState(false);
+  const [isGlobalMode, setIsGlobalMode] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
       loadProfiles();
       loadSwipeLimits();
       checkRewindFeature();
+      checkGlobalDatingFeature();
     }
   }, [user?.id]);
 
@@ -63,6 +67,29 @@ export default function SwipePage() {
     }
   };
 
+  const checkGlobalDatingFeature = async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('subscription_tier_id')
+        .eq('id', user.id)
+        .single();
+
+      if (data?.subscription_tier_id) {
+        const { data: tierData } = await supabase
+          .from('subscription_tiers')
+          .select('has_global_dating')
+          .eq('id', data.subscription_tier_id)
+          .single();
+
+        setHasGlobalDating(tierData?.has_global_dating || false);
+      }
+    } catch (error) {
+      console.error('Error checking global dating feature:', error);
+    }
+  };
+
   const loadSwipeLimits = async () => {
     if (!user?.id) return;
     try {
@@ -79,6 +106,7 @@ export default function SwipePage() {
       if (!user?.id) return;
 
       const settings = await getUserSettings(user.id);
+      // Pass global mode flag to discovery algorithm
       const discoveredProfiles = await getDiscoveryProfiles(user.id, settings);
       // Map UserProfile to Profile type - INCLUDE ALL FIELDS
       const mappedProfiles = discoveredProfiles.map((profile) => ({
@@ -187,52 +215,126 @@ export default function SwipePage() {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-4">
       <div className="max-w-md mx-auto">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">Find Matches</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">Find Matches</h1>
+            {/* Global/Local Toggle for Premium Users */}
+            {hasGlobalDating && (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white">
+                  <Crown className="w-3 h-3 mr-1" />
+                  Premium
+                </Badge>
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => {
+                      setIsGlobalMode(false);
+                      loadProfiles(); // Reload profiles when switching modes
+                    }}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                      !isGlobalMode
+                        ? 'bg-white text-pink-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <MapPin className="w-4 h-4" />
+                    Local
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsGlobalMode(true);
+                      loadProfiles(); // Reload profiles when switching modes
+                    }}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                      isGlobalMode
+                        ? 'bg-white text-pink-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Globe className="w-4 h-4" />
+                    Global
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <Button variant="outline" size="icon" onClick={handleSettingsClick}>
             <Settings className="w-4 h-4" />
           </Button>
         </div>
 
-        {/* Swipe Limit Info */}
-        {swipeLimitInfo && !swipeLimitInfo.isPremium && (
-          <div className="mb-4 p-3 bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="text-sm text-gray-600">
-                  {swipeLimitInfo.remainingSwipes > 0 ? (
-                    <>
-                      <span className="font-bold text-pink-600">{swipeLimitInfo.remainingSwipes}</span> swipes left
-                    </>
-                  ) : (
-                    <span className="text-red-600 font-medium">No swipes left</span>
-                  )}
-                </div>
-                {swipeLimitInfo.resetAt && (
-                  <span className="text-xs text-gray-500">
-                    • Resets in {formatTimeRemaining(swipeLimitInfo.resetAt)}
-                  </span>
-                )}
-              </div>
-              <Button
-                size="sm"
-                onClick={() => router.push('/premium')}
-                className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600"
-              >
-                <Crown className="w-3 h-3 mr-1" />
-                Unlimited
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Swipe Limit Info for Free and Basic users */}
+        {swipeLimitInfo && !swipeLimitInfo.isPremium && !swipeLimitInfo.isBasic && (
+           <div className="mb-4 p-3 bg-white rounded-lg shadow-sm border border-gray-200">
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <div className="text-sm text-gray-600">
+                   {swipeLimitInfo.remainingSwipes > 0 ? (
+                     <>
+                       <span className="font-bold text-pink-600">{swipeLimitInfo.remainingSwipes}</span> swipes left
+                     </>
+                   ) : (
+                     <span className="text-red-600 font-medium">No swipes left</span>
+                   )}
+                 </div>
+                 {swipeLimitInfo.resetAt && (
+                   <span className="text-xs text-gray-500">
+                     • Resets in {formatTimeRemaining(swipeLimitInfo.resetAt)}
+                   </span>
+                 )}
+               </div>
+               <Button
+                 size="sm"
+                 onClick={() => router.push('/premium')}
+                 className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600"
+               >
+                 <Crown className="w-3 h-3 mr-1" />
+                 Upgrade
+               </Button>
+             </div>
+           </div>
+         )}
 
-        {swipeLimitInfo?.isPremium && (
-          <div className="mb-4 p-3 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg shadow-sm">
-            <div className="flex items-center gap-2 text-white">
-              <Crown className="w-5 h-5" />
-              <span className="font-medium">Premium - Unlimited Swipes</span>
-            </div>
-          </div>
-        )}
+         {/* Basic tier - show limited swipes with countdown */}
+         {swipeLimitInfo?.isBasic && (
+           <div className="mb-4 p-3 bg-white rounded-lg shadow-sm border border-gray-200">
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <div className="text-sm text-gray-600">
+                   {swipeLimitInfo.remainingSwipes > 0 ? (
+                     <>
+                       <span className="font-bold text-pink-600">{swipeLimitInfo.remainingSwipes}</span> swipes left
+                     </>
+                   ) : (
+                     <span className="text-red-600 font-medium">No swipes left</span>
+                   )}
+                 </div>
+                 {swipeLimitInfo.resetAt && (
+                   <span className="text-xs text-gray-500">
+                     • Resets in {formatTimeRemaining(swipeLimitInfo.resetAt)}
+                   </span>
+                 )}
+               </div>
+               <Button
+                 size="sm"
+                 onClick={() => router.push('/premium')}
+                 className="bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700"
+               >
+                 <Crown className="w-3 h-3 mr-1" />
+                 More Swipes
+               </Button>
+             </div>
+           </div>
+         )}
+
+         {/* Premium tier - show unlimited badge */}
+         {swipeLimitInfo?.isPremium && (
+           <div className="mb-4 p-3 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg shadow-sm">
+             <div className="flex items-center gap-2 text-white">
+               <Crown className="w-5 h-5" />
+               <span className="font-medium">Premium - Unlimited Swipes</span>
+             </div>
+           </div>
+         )}
 
         <SwipeDeck
           profiles={profiles}

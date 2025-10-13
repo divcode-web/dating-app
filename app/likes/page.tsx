@@ -38,10 +38,16 @@ export default function LikesPage() {
     try {
       const { data } = await supabase
         .from("user_profiles")
-        .select("is_premium")
+        .select("subscription_tier_id, subscription_tiers(can_see_who_likes)")
         .eq("id", user?.id)
         .single();
-      setIsPremium(data?.is_premium || false);
+
+      // Check if user has a subscription tier that allows seeing who likes
+      const tierData = Array.isArray(data?.subscription_tiers)
+        ? data.subscription_tiers[0]
+        : data?.subscription_tiers;
+
+      setIsPremium(tierData?.can_see_who_likes || false);
     } catch (error) {
       console.error("Error checking premium:", error);
     }

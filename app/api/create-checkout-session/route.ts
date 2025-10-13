@@ -12,6 +12,7 @@ const PREMIUM_PRICES = {
   'premium-yearly': process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID!,
 }
 
+export const dynamic = 'force-dynamic';export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()

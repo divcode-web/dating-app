@@ -10,8 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Heart, Mail, Lock, User, UserPlus, Calendar, MapPin, Camera, ExternalLink, Gift } from 'lucide-react'
+import { Heart, Mail, Lock, User, UserPlus, Calendar, MapPin, Camera, ExternalLink, Gift, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { CloudflareCaptcha, useCaptcha } from '@/components/ui/cloudflare-captcha'
+import { validatePassword, getPasswordStrengthColor, getPasswordStrengthText, PasswordValidationResult } from '@/lib/password-security'
 
 export function AuthForm() {
   const [isLoading, setIsLoading] = useState(false)
@@ -29,8 +31,56 @@ export function AuthForm() {
   const [showTermsModal, setShowTermsModal] = useState(false)
   const [promoCode, setPromoCode] = useState('')
   const [signUpStep, setSignUpStep] = useState(1) // Multi-step form
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState<PasswordValidationResult>({
+    isValid: false,
+    errors: [],
+    strength: 'weak',
+    score: 0
+  })
 
   const { signIn, signUp, resetPassword, signInWithGoogle } = useAuth()
+
+  // CAPTCHA state management
+  const captcha = useCaptcha()
+  const [captchaVerified, setCaptchaVerified] = useState(false)
+
+  // Password validation effect
+  React.useEffect(() => {
+    if (password) {
+      const validation = validatePassword(password)
+      setPasswordStrength(validation)
+    } else {
+      setPasswordStrength({ isValid: false, errors: [], strength: 'weak', score: 0 })
+    }
+  }, [password])
+
+  // CAPTCHA verification handler
+  const handleCaptchaVerify = async (token: string) => {
+    try {
+      const response = await fetch('/api/verify-captcha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setCaptchaVerified(true)
+        captcha.handleVerify(token)
+      } else {
+        setCaptchaVerified(false)
+        captcha.handleError(result.error || 'CAPTCHA verification failed')
+        toast.error('Security check failed. Please try again.')
+      }
+    } catch (error) {
+      setCaptchaVerified(false)
+      captcha.handleError('Network error during verification')
+      toast.error('Security check failed. Please try again.')
+    }
+  }
 
   const handleNextStep = () => {
     // Step 1: Email & Password validation
@@ -43,10 +93,14 @@ export function AuthForm() {
         toast.error('Passwords do not match')
         return
       }
-      if (password.length < 6) {
-        toast.error('Password must be at least 6 characters')
+
+      // Enhanced password validation
+      const validation = validatePassword(password)
+      if (!validation.isValid) {
+        toast.error(validation.errors[0] || 'Password does not meet requirements')
         return
       }
+
       setSignUpStep(2)
     }
     // Step 2: Profile info validation
@@ -115,6 +169,11 @@ export function AuthForm() {
 
     if (!acceptedTerms) {
       toast.error('Please accept the Terms & Conditions to continue')
+      return
+    }
+
+    if (!captchaVerified) {
+      toast.error('Please complete the security check')
       return
     }
 
@@ -458,13 +517,63 @@ export function AuthForm() {
                               <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                               <Input
                                 id="signup-password"
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 placeholder="Create a strong password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="pl-10 h-12 border-gray-200 focus:border-pink-300 focus:ring-pink-200"
+                                className="pl-10 pr-10 h-12 border-gray-200 focus:border-pink-300 focus:ring-pink-200"
                               />
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                              >
+                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
                             </div>
+
+                            {/* Password strength indicator */}
+                            {password && (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-600">Password strength:</span>
+                                  <span className={`font-medium ${getPasswordStrengthColor(passwordStrength.strength)}`}>
+                                    {getPasswordStrengthText(passwordStrength.strength)}
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className={`h-2 rounded-full transition-all duration-300 ${
+                                      passwordStrength.strength === 'very-strong' ? 'bg-green-500' :
+                                      passwordStrength.strength === 'strong' ? 'bg-blue-500' :
+                                      passwordStrength.strength === 'medium' ? 'bg-yellow-500' :
+                                      'bg-red-500'
+                                    }`}
+                                    style={{ width: `${passwordStrength.score}%` }}
+                                  ></div>
+                                </div>
+
+                                {/* Password requirements */}
+                                <div className="text-xs text-gray-500 space-y-1">
+                                  <div className={`flex items-center gap-1 ${password.length >= 8 ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <div className={`w-1 h-1 rounded-full ${password.length >= 8 ? 'bg-green-600' : 'bg-gray-400'}`}></div>
+                                    At least 8 characters
+                                  </div>
+                                  <div className={`flex items-center gap-1 ${/[A-Z]/.test(password) ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <div className={`w-1 h-1 rounded-full ${/[A-Z]/.test(password) ? 'bg-green-600' : 'bg-gray-400'}`}></div>
+                                    One uppercase letter
+                                  </div>
+                                  <div className={`flex items-center gap-1 ${/[a-z]/.test(password) ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <div className={`w-1 h-1 rounded-full ${/[a-z]/.test(password) ? 'bg-green-600' : 'bg-gray-400'}`}></div>
+                                    One lowercase letter
+                                  </div>
+                                  <div className={`flex items-center gap-1 ${/\d/.test(password) ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <div className={`w-1 h-1 rounded-full ${/\d/.test(password) ? 'bg-green-600' : 'bg-gray-400'}`}></div>
+                                    One number
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           <div className="space-y-2">
@@ -473,13 +582,23 @@ export function AuthForm() {
                               <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                               <Input
                                 id="confirm-password"
-                                type="password"
+                                type={showConfirmPassword ? "text" : "password"}
                                 placeholder="Confirm your password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="pl-10 h-12 border-gray-200 focus:border-pink-300 focus:ring-pink-200"
+                                className="pl-10 pr-10 h-12 border-gray-200 focus:border-pink-300 focus:ring-pink-200"
                               />
+                              <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                              >
+                                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
                             </div>
+                            {confirmPassword && password && confirmPassword !== password && (
+                              <p className="text-sm text-red-600">Passwords do not match</p>
+                            )}
                           </div>
                         </div>
 
@@ -627,6 +746,34 @@ export function AuthForm() {
                     {signUpStep === 3 && (
                       <>
                         <div className="space-y-4">
+                          {/* CAPTCHA Verification */}
+                          <div className="space-y-2">
+                            <Label className="text-gray-700">Security Check</Label>
+                            <CloudflareCaptcha
+                              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+                              onVerify={handleCaptchaVerify}
+                              onError={(error) => {
+                                captcha.handleError(error)
+                                toast.error('CAPTCHA error: ' + error)
+                              }}
+                              onExpire={() => {
+                                captcha.handleExpire()
+                                setCaptchaVerified(false)
+                                toast.error('Security check expired. Please try again.')
+                              }}
+                              theme="auto"
+                              size="normal"
+                              className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                              resetKey={signUpStep}
+                            />
+                            {captchaVerified && (
+                              <p className="text-sm text-green-600 flex items-center gap-1">
+                                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                                Security check completed
+                              </p>
+                            )}
+                          </div>
+
                           {/* Promo Code Field */}
                           <div className="space-y-2">
                             <Label htmlFor="promo-code" className="text-gray-700 flex items-center gap-2">

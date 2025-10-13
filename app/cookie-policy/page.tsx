@@ -307,7 +307,7 @@ export default function CookiePolicyPage() {
                 <strong>Email:</strong> privacy@loventodate.com
               </p>
               <p>
-                <strong>Address:</strong> [Your Company Address]
+                <strong>Address:</strong> 123 Main Street, Suite 456, San Francisco, CA 94102, USA
               </p>
               <p>
                 <strong>Data Protection Officer:</strong> dpo@loventodate.com

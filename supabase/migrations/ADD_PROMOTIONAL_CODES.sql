@@ -1,3 +1,6 @@
+-- Add subscription_expires_at column to user_profiles if it doesn't exist
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMP WITH TIME ZONE;
+
 -- Create promotional codes table
 CREATE TABLE IF NOT EXISTS promotional_codes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -138,10 +141,11 @@ BEGIN
       updated_at = NOW()
   WHERE id = v_promo_id;
 
-  -- Update user's subscription tier and expiry
+  -- Update user's subscription tier, expiry, and premium status
   UPDATE user_profiles
   SET subscription_tier_id = v_tier_id,
       subscription_expires_at = v_expires_at,
+      is_premium = TRUE,
       updated_at = NOW()
   WHERE id = p_user_id;
 

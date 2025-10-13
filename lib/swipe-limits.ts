@@ -1,36 +1,39 @@
 import { supabase } from './supabase';
+import { getUserLimits } from './subscription-limits';
 
-const FREE_USER_SWIPE_LIMIT = 10;
 const RESET_HOURS = 24;
 
 export interface SwipeLimitInfo {
-  remainingSwipes: number;
-  resetAt: Date | null;
-  canSwipe: boolean;
-  isPremium: boolean;
-}
+   remainingSwipes: number;
+   resetAt: Date | null;
+   canSwipe: boolean;
+   isPremium: boolean;
+   isBasic: boolean;
+   isStandard: boolean;
+   tierName: string;
+   dailyLimit: number;
+ }
 
 export async function getSwipeLimitInfo(userId: string): Promise<SwipeLimitInfo> {
   try {
-    // Check if user is premium
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('is_premium, premium_until')
-      .eq('id', userId)
-      .single();
+    // Get user's subscription limits from the subscription system
+    const limits = await getUserLimits(userId);
+    const dailyLimit = limits.swipes.limit ?? 10; // Default to 10 if null
+    const isUnlimited = dailyLimit === -1;
 
-    const isPremium = profile?.is_premium &&
-      (!profile.premium_until || new Date(profile.premium_until) > new Date());
-
-    // Premium users have unlimited swipes
-    if (isPremium) {
-      return {
-        remainingSwipes: -1, // -1 means unlimited
-        resetAt: null,
-        canSwipe: true,
-        isPremium: true,
-      };
-    }
+    // If unlimited swipes
+    if (isUnlimited) {
+       return {
+         remainingSwipes: -1, // -1 means unlimited
+         resetAt: null,
+         canSwipe: true,
+         isPremium: limits.tier.id === 'premium_yearly',
+         isBasic: limits.tier.id === 'basic_monthly',
+         isStandard: limits.tier.id === 'standard_3month',
+         tierName: limits.tier.name,
+         dailyLimit: -1,
+       };
+     }
 
     // Get or create swipe limit record
     const { data: swipeLimit } = await supabase
@@ -52,10 +55,14 @@ export async function getSwipeLimitInfo(userId: string): Promise<SwipeLimitInfo>
       });
 
       return {
-        remainingSwipes: FREE_USER_SWIPE_LIMIT,
+        remainingSwipes: dailyLimit,
         resetAt,
         canSwipe: true,
-        isPremium: false,
+        isPremium: limits.tier.id === 'premium_yearly',
+        isBasic: limits.tier.id === 'basic_monthly',
+        isStandard: limits.tier.id === 'standard_3month',
+        tierName: limits.tier.name,
+        dailyLimit,
       };
     }
 
@@ -74,21 +81,29 @@ export async function getSwipeLimitInfo(userId: string): Promise<SwipeLimitInfo>
         .eq('user_id', userId);
 
       return {
-        remainingSwipes: FREE_USER_SWIPE_LIMIT,
+        remainingSwipes: dailyLimit,
         resetAt: newResetAt,
         canSwipe: true,
-        isPremium: false,
+        isPremium: limits.tier.id === 'premium_yearly',
+        isBasic: limits.tier.id === 'basic_monthly',
+        isStandard: limits.tier.id === 'standard_3month',
+        tierName: limits.tier.name,
+        dailyLimit,
       };
     }
 
-    // Calculate remaining swipes
-    const remainingSwipes = Math.max(0, FREE_USER_SWIPE_LIMIT - swipeLimit.swipes_used);
+    // Calculate remaining swipes based on user's tier limit
+    const remainingSwipes = Math.max(0, dailyLimit - swipeLimit.swipes_used);
 
     return {
       remainingSwipes,
       resetAt,
       canSwipe: remainingSwipes > 0,
-      isPremium: false,
+      isPremium: limits.tier.id === 'premium_yearly',
+      isBasic: limits.tier.id === 'basic_monthly',
+      isStandard: limits.tier.id === 'standard_3month',
+      tierName: limits.tier.name,
+      dailyLimit,
     };
   } catch (error) {
     console.error('Error getting swipe limit info:', error);

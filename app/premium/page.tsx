@@ -460,7 +460,7 @@ export default function PremiumPage() {
                   <tr className="hover:bg-gray-50 dark:hover:bg-gray-900/30">
                     <td className="p-4 text-sm font-medium text-gray-900 dark:text-white">👀 See Who Likes You</td>
                     <td className="p-4 text-center"><X className="w-5 h-5 text-gray-400 mx-auto" /></td>
-                    <td className="p-4 text-center bg-pink-50/50 dark:bg-pink-900/10"><X className="w-5 h-5 text-gray-400 mx-auto" /></td>
+                    <td className="p-4 text-center bg-pink-50/50 dark:bg-pink-900/10"><CheckCircle2 className="w-5 h-5 text-pink-600 mx-auto" /></td>
                     <td className="p-4 text-center bg-purple-50/50 dark:bg-purple-900/10"><CheckCircle2 className="w-5 h-5 text-purple-600 mx-auto" /></td>
                     <td className="p-4 text-center bg-yellow-50/50 dark:bg-yellow-900/10"><CheckCircle2 className="w-5 h-5 text-yellow-600 mx-auto" /></td>
                   </tr>

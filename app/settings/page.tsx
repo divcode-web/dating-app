@@ -74,7 +74,7 @@ export default function SettingsPage() {
     try {
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("location, location_city")
+        .select("location, location_city, subscription_tier_id, subscription_expires_at")
         .eq("id", userId)
         .maybeSingle();
 
@@ -660,52 +660,99 @@ export default function SettingsPage() {
                     <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Current Plan</h4>
                     <p className="text-2xl font-bold mt-1">
                       {(!userProfile?.subscription_tier_id || userProfile?.subscription_tier_id === 'free') && 'Free Plan'}
-                      {userProfile?.subscription_tier_id === 'basic_monthly' && 'Basic Monthly'}
-                      {userProfile?.subscription_tier_id === 'standard_3month' && 'Standard (3 Months)'}
+                      {userProfile?.subscription_tier_id === 'basic_monthly' && 'Basic Plan'}
+                      {userProfile?.subscription_tier_id === 'standard_3month' && 'Standard Plan'}
                       {userProfile?.subscription_tier_id === 'premium_yearly' && 'Premium VIP'}
                     </p>
+                    {/* Show countdown for promo subscriptions */}
+                    {userProfile?.subscription_expires_at && new Date(userProfile.subscription_expires_at) > new Date() && (
+                      <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                        {userProfile?.subscription_tier_id === 'basic_monthly' && 'Basic promo'}
+                        {userProfile?.subscription_tier_id === 'standard_3month' && 'Standard promo'}
+                        {userProfile?.subscription_tier_id === 'premium_yearly' && 'Premium promo'} expires in {Math.ceil((new Date(userProfile.subscription_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days
+                      </p>
+                    )}
+
+                    {/* Show expired subscription message */}
+                    {userProfile?.subscription_expires_at && new Date(userProfile.subscription_expires_at) <= new Date() && userProfile?.subscription_tier_id !== 'free' && (
+                      <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                        Subscription expired - Reverted to Free Plan
+                      </p>
+                    )}
                   </div>
                   {userProfile?.subscription_tier_id && userProfile?.subscription_tier_id !== 'free' && (
                     <div className="flex items-center gap-2">
                       <Crown className="w-6 h-6 text-yellow-500" />
-                      <span className="text-sm font-medium text-green-600 dark:text-green-400">Active</span>
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                        {userProfile?.subscription_expires_at && new Date(userProfile.subscription_expires_at) > new Date() ? 'Promo Active' : 'Active'}
+                      </span>
                     </div>
                   )}
                 </div>
 
-                {(!userProfile?.subscription_tier_id || userProfile?.subscription_tier_id === 'free') ? (
-                  <div className="p-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg text-white">
-                    <p className="text-sm mb-3">Unlock premium features and get more matches!</p>
-                    <Button
-                      onClick={() => router.push('/premium')}
-                      className="w-full bg-white text-pink-500 hover:bg-gray-100 font-semibold"
-                    >
-                      View All Plans
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">Status</span>
-                      <span className="font-medium">Premium Active</span>
+                {/* Check if subscription is expired and revert to free */}
+                {(() => {
+                  const isExpired = userProfile?.subscription_expires_at && new Date(userProfile.subscription_expires_at) <= new Date() && userProfile?.subscription_tier_id !== 'free';
+
+                  // Auto-revert expired subscriptions to free
+                  if (isExpired && userProfile?.subscription_tier_id) {
+                    // Update the database to revert to free tier
+                    supabase
+                      .from('user_profiles')
+                      .update({
+                        subscription_tier_id: 'free',
+                        subscription_expires_at: null
+                      })
+                      .eq('id', user?.id)
+                      .then(() => {
+                        // Refresh the profile data
+                        fetchUserProfile(user?.id);
+                      });
+                  }
+
+                  if (!userProfile?.subscription_tier_id || userProfile?.subscription_tier_id === 'free' || isExpired) {
+                    return (
+                      <div className="p-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg text-white">
+                        <p className="text-sm mb-3">Unlock premium features and get more matches!</p>
+                        <Button
+                          onClick={() => router.push('/premium')}
+                          className="w-full bg-white text-pink-500 hover:bg-gray-100 font-semibold"
+                        >
+                          View All Plans
+                        </Button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Status</span>
+                        <span className="font-medium">
+                          {userProfile?.subscription_tier_id === 'basic_monthly' && 'Basic Active'}
+                          {userProfile?.subscription_tier_id === 'standard_3month' && 'Standard Active'}
+                          {userProfile?.subscription_tier_id === 'premium_yearly' && 'Premium VIP Active'}
+                          {!userProfile?.subscription_tier_id || userProfile?.subscription_tier_id === 'free' && 'Free Plan'}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          onClick={() => router.push('/premium')}
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          Change Plan
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          Cancel Subscription
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2 mt-4">
-                      <Button
-                        onClick={() => router.push('/premium')}
-                        variant="outline"
-                        className="flex-1"
-                      >
-                        Change Plan
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                      >
-                        Cancel Subscription
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* Promo Code Redemption */}

@@ -10,7 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { updateUserProfile, uploadPhoto, getUserProfile } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "./auth-provider";
 import { UserProfile } from "@/lib/types";
 import { Upload, X, Search, Music } from "lucide-react";
@@ -73,10 +75,25 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
 
   // Spotify search states
   const [spotifySearch, setSpotifySearch] = useState("");
-  const [spotifySearchType, setSpotifySearchType] = useState<"artist" | "track">("artist");
+  const [spotifySearchType, setSpotifySearchType] = useState<
+    "artist" | "track"
+  >("artist");
   const [spotifyResults, setSpotifyResults] = useState<any[]>([]);
   const [searchingSpotify, setSearchingSpotify] = useState(false);
   const [showSpotifySearch, setShowSpotifySearch] = useState(false);
+
+  // Privacy settings state - Commented out until needed
+  // const [privacySettings, setPrivacySettings] = useState({
+  //   hide_work_education: false,
+  //   hide_lifestyle: false,
+  //   hide_interests: false,
+  //   hide_languages: false,
+  //   hide_spotify: false,
+  //   hide_books: false,
+  //   hide_location: false,
+  //   hide_age: false,
+  //   hide_photos: false,
+  // });
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -217,6 +234,7 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
         }
       }
 
+      // Save profile data
       const savedData = await updateUserProfile(user.id, profile);
 
       toast.success("Profile updated successfully!");
@@ -851,6 +869,167 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
         </div>
       </div>
 
+      {/* Privacy Settings - Completely commented out until needed */}
+      {/*
+       <div className="space-y-4">
+         <div className="flex items-center gap-2">
+           <Shield className="w-5 h-5 text-gray-600" />
+           <h2 className="text-xl font-bold text-gray-900">Privacy Settings</h2>
+         </div>
+         <p className="text-sm text-gray-600">
+           Control what information others can see on your profile
+         </p>
+
+         <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <Eye className="w-4 h-4 text-gray-600" />
+                 <Label htmlFor="hide_location" className="cursor-pointer">
+                   Hide Location
+                 </Label>
+               </div>
+               <Switch
+                 id="hide_location"
+                 checked={privacySettings.hide_location}
+                 onCheckedChange={(checked) =>
+                   setPrivacySettings(prev => ({ ...prev, hide_location: checked }))
+                 }
+               />
+             </div>
+
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <Eye className="w-4 h-4 text-gray-600" />
+                 <Label htmlFor="hide_age" className="cursor-pointer">
+                   Hide Age
+                 </Label>
+               </div>
+               <Switch
+                 id="hide_age"
+                 checked={privacySettings.hide_age}
+                 onCheckedChange={(checked) =>
+                   setPrivacySettings(prev => ({ ...prev, hide_age: checked }))
+                 }
+               />
+             </div>
+
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <Eye className="w-4 h-4 text-gray-600" />
+                 <Label htmlFor="hide_work_education" className="cursor-pointer">
+                   Hide Work & Education
+                 </Label>
+               </div>
+               <Switch
+                 id="hide_work_education"
+                 checked={privacySettings.hide_work_education}
+                 onCheckedChange={(checked) =>
+                   setPrivacySettings(prev => ({ ...prev, hide_work_education: checked }))
+                 }
+               />
+             </div>
+
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <Eye className="w-4 h-4 text-gray-600" />
+                 <Label htmlFor="hide_lifestyle" className="cursor-pointer">
+                   Hide Lifestyle Info
+                 </Label>
+               </div>
+               <Switch
+                 id="hide_lifestyle"
+                 checked={privacySettings.hide_lifestyle}
+                 onCheckedChange={(checked) =>
+                   setPrivacySettings(prev => ({ ...prev, hide_lifestyle: checked }))
+                 }
+               />
+             </div>
+
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <Eye className="w-4 h-4 text-gray-600" />
+                 <Label htmlFor="hide_interests" className="cursor-pointer">
+                   Hide Interests
+                 </Label>
+               </div>
+               <Switch
+                 id="hide_interests"
+                 checked={privacySettings.hide_interests}
+                 onCheckedChange={(checked) =>
+                   setPrivacySettings(prev => ({ ...prev, hide_interests: checked }))
+                 }
+               />
+             </div>
+
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <Eye className="w-4 h-4 text-gray-600" />
+                 <Label htmlFor="hide_languages" className="cursor-pointer">
+                   Hide Languages
+                 </Label>
+               </div>
+               <Switch
+                 id="hide_languages"
+                 checked={privacySettings.hide_languages}
+                 onCheckedChange={(checked) =>
+                   setPrivacySettings(prev => ({ ...prev, hide_languages: checked }))
+                 }
+               />
+             </div>
+
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <Eye className="w-4 h-4 text-gray-600" />
+                 <Label htmlFor="hide_spotify" className="cursor-pointer">
+                   Hide Music Preferences
+                 </Label>
+               </div>
+               <Switch
+                 id="hide_spotify"
+                 checked={privacySettings.hide_spotify}
+                 onCheckedChange={(checked) =>
+                   setPrivacySettings(prev => ({ ...prev, hide_spotify: checked }))
+                 }
+               />
+             </div>
+
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <Eye className="w-4 h-4 text-gray-600" />
+                 <Label htmlFor="hide_books" className="cursor-pointer">
+                   Hide Favorite Books
+                 </Label>
+               </div>
+               <Switch
+                 id="hide_books"
+                 checked={privacySettings.hide_books}
+                 onCheckedChange={(checked) =>
+                   setPrivacySettings(prev => ({ ...prev, hide_books: checked }))
+                 }
+               />
+             </div>
+
+             <div className="flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                 <Eye className="w-4 h-4 text-gray-600" />
+                 <Label htmlFor="hide_photos" className="cursor-pointer">
+                   Hide Photo Gallery
+                 </Label>
+               </div>
+               <Switch
+                 id="hide_photos"
+                 checked={privacySettings.hide_photos}
+                 onCheckedChange={(checked) =>
+                   setPrivacySettings(prev => ({ ...prev, hide_photos: checked }))
+                 }
+               />
+             </div>
+           </div>
+         </div>
+       </div>
+       */}
+
       {/* Enhanced Profile Fields - Phase 1 */}
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-gray-900">More About Me</h2>
@@ -926,7 +1105,8 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                   <p className="text-xs font-semibold text-gray-600">
                     TOP ARTISTS (Max 5)
                   </p>
-                  {(!profile.spotify_top_artists || profile.spotify_top_artists.length < 5) && (
+                  {(!profile.spotify_top_artists ||
+                    profile.spotify_top_artists.length < 5) && (
                     <Button
                       type="button"
                       size="sm"
@@ -983,9 +1163,12 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                               />
                             )}
                             <div>
-                              <p className="font-medium text-sm">{artist.name}</p>
+                              <p className="font-medium text-sm">
+                                {artist.name}
+                              </p>
                               <p className="text-xs text-gray-500">
-                                {artist.followers?.total.toLocaleString()} followers
+                                {artist.followers?.total.toLocaleString()}{" "}
+                                followers
                               </p>
                             </div>
                           </button>
@@ -996,26 +1179,31 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                 )}
 
                 {/* Selected Artists */}
-                {profile.spotify_top_artists && profile.spotify_top_artists.length > 0 ? (
+                {profile.spotify_top_artists &&
+                profile.spotify_top_artists.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {profile.spotify_top_artists.map((artist: string, index: number) => (
-                      <div
-                        key={index}
-                        className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm flex items-center gap-2"
-                      >
-                        {artist}
-                        <button
-                          type="button"
-                          onClick={() => removeSpotifyArtist(index)}
-                          className="hover:text-green-900"
+                    {profile.spotify_top_artists.map(
+                      (artist: string, index: number) => (
+                        <div
+                          key={index}
+                          className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm flex items-center gap-2"
                         >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
+                          {artist}
+                          <button
+                            type="button"
+                            onClick={() => removeSpotifyArtist(index)}
+                            className="hover:text-green-900"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )
+                    )}
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-500 italic">No artists added yet</p>
+                  <p className="text-xs text-gray-500 italic">
+                    No artists added yet
+                  </p>
                 )}
               </div>
 
@@ -1080,9 +1268,13 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                               />
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{track.name}</p>
+                              <p className="font-medium text-sm truncate">
+                                {track.name}
+                              </p>
                               <p className="text-xs text-gray-500 truncate">
-                                {track.artists.map((a: any) => a.name).join(", ")}
+                                {track.artists
+                                  .map((a: any) => a.name)
+                                  .join(", ")}
                               </p>
                             </div>
                           </button>
@@ -1093,7 +1285,8 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                 )}
 
                 {/* Selected Anthem */}
-                {profile.spotify_anthem && typeof profile.spotify_anthem === 'object' ? (
+                {profile.spotify_anthem &&
+                typeof profile.spotify_anthem === "object" ? (
                   <div className="flex items-center gap-3 p-2 bg-gray-50 rounded">
                     {profile.spotify_anthem.album_image && (
                       <img
@@ -1112,7 +1305,9 @@ export function ProfileForm({ onSave }: ProfileFormProps = {}) {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-500 italic">No anthem set yet</p>
+                  <p className="text-xs text-gray-500 italic">
+                    No anthem set yet
+                  </p>
                 )}
               </div>
             </div>

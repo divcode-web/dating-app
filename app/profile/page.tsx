@@ -5,9 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { addProfileUpdateListener } from "@/lib/api";
 import { ProfileForm } from "@/components/profile-form";
+import { ProfileBoost } from "@/components/profile-boost";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle, Edit, Shield, Crown, Eye } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, CheckCircle, Edit, Shield, Crown, Eye, Rocket } from "lucide-react";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -132,13 +134,13 @@ export default function ProfilePage() {
           </Button>
 
           <Card className="p-6">
-            <div className="flex items-start gap-6">
+            <div className="flex flex-col md:flex-row items-start gap-6">
               {/* Profile Picture with Badges */}
-              <div className="relative">
+              <div className="relative mx-auto md:mx-0">
                 <img
                   src={profileData.photos?.[0] || "/default-avatar.png"}
                   alt={profileData.full_name}
-                  className="w-32 h-32 rounded-full object-cover ring-4 ring-white dark:ring-gray-800"
+                  className="w-32 h-32 md:w-32 md:h-32 rounded-full object-cover ring-4 ring-white dark:ring-gray-800"
                 />
                 {/* Premium Crown Badge */}
                 {profileData.is_premium && (
@@ -155,14 +157,14 @@ export default function ProfilePage() {
               </div>
 
               {/* Profile Info */}
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold">
+              <div className="flex-1 w-full">
+                <h1 className="text-2xl md:text-3xl font-bold text-center md:text-left">
                   {profileData.full_name}
                 </h1>
-                <p className="text-gray-600 mt-2">{profileData.bio}</p>
+                <p className="text-gray-600 mt-2 text-center md:text-left">{profileData.bio}</p>
 
                 {/* Basic Info */}
-                <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                   {profileData.location_city && (
                     <div>
                       <p className="text-sm text-gray-500">Location</p>
@@ -190,7 +192,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Lifestyle */}
-                <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                   {profileData.occupation && (
                     <div>
                       <p className="text-sm text-gray-500">Occupation</p>
@@ -346,13 +348,13 @@ export default function ProfilePage() {
             {profileData.photos && profileData.photos.length > 1 && (
               <div className="mt-6">
                 <p className="text-sm text-gray-500 mb-3">Photos</p>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {profileData.photos.slice(1).map((photo: string, i: number) => (
                     <img
                       key={i}
                       src={photo}
                       alt={`Photo ${i + 2}`}
-                      className="w-full h-48 object-cover rounded-lg"
+                      className="w-full h-32 sm:h-48 object-cover rounded-lg"
                     />
                   ))}
                 </div>
@@ -368,28 +370,28 @@ export default function ProfilePage() {
   if (showPreview && profileData) {
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div className="max-w-4xl w-full my-8">
+        <div className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 z-10">
+            <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-900 z-10">
               <div>
-                <h2 className="text-2xl font-bold">Profile Preview</h2>
+                <h2 className="text-xl md:text-2xl font-bold">Profile Preview</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">How others see your profile</p>
               </div>
-              <Button onClick={() => setShowPreview(false)} variant="ghost">
+              <Button onClick={() => setShowPreview(false)} variant="ghost" size="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Edit
               </Button>
             </div>
 
-            <div className="p-6">
-              <Card className="p-6">
-                <div className="flex items-start gap-6">
+            <div className="p-4 md:p-6">
+              <Card className="p-4 md:p-6">
+                <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
                   {/* Profile Picture with Badges */}
-                  <div className="relative">
+                  <div className="relative mx-auto md:mx-0">
                     <img
                       src={profileData.photos?.[0] || "/default-avatar.png"}
                       alt={profileData.full_name}
-                      className="w-32 h-32 rounded-full object-cover ring-4 ring-white dark:ring-gray-800"
+                      className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover ring-4 ring-white dark:ring-gray-800"
                     />
                     {/* Premium Crown Badge */}
                     {profileData.is_premium && (
@@ -423,7 +425,7 @@ export default function ProfilePage() {
                     <p className="text-gray-600 dark:text-gray-400 mt-2">{profileData.bio}</p>
 
                     {/* Basic Info */}
-                    <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                       {profileData.location_city && (
                         <div>
                           <p className="text-sm text-gray-500">Location</p>
@@ -577,6 +579,39 @@ export default function ProfilePage() {
                       </div>
                     )}
 
+                    {/* Spotify */}
+                    {profileData.spotify_top_artists && profileData.spotify_top_artists.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-500 mb-2">🎵 Top Artists</p>
+                        <div className="flex flex-wrap gap-2">
+                          {profileData.spotify_top_artists.map((artist: string, i: number) => (
+                            <span
+                              key={i}
+                              className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm"
+                            >
+                              {artist}
+                            </span>
+                          ))}
+                        </div>
+                        {profileData.spotify_anthem && typeof profileData.spotify_anthem === 'object' && (
+                          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg flex items-center gap-3">
+                            {profileData.spotify_anthem.album_image && (
+                              <img
+                                src={profileData.spotify_anthem.album_image}
+                                alt="Album"
+                                className="w-12 h-12 rounded"
+                              />
+                            )}
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">ANTHEM</p>
+                              <p className="font-medium text-sm">{profileData.spotify_anthem.track_name}</p>
+                              <p className="text-xs text-gray-600">{profileData.spotify_anthem.artist_name}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Favorite Books */}
                     {profileData.favorite_books && profileData.favorite_books.length > 0 && (
                       <div className="mt-4">
@@ -584,8 +619,8 @@ export default function ProfilePage() {
                         <div className="flex flex-wrap gap-2">
                           {profileData.favorite_books.map((book: any, i: number) => (
                             <div key={i} className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg">
-                              {book.cover && (
-                                <img src={book.cover} alt={book.title} className="w-8 h-12 object-cover rounded" />
+                              {book.cover_url && (
+                                <img src={book.cover_url} alt={book.title} className="w-8 h-12 object-cover rounded" />
                               )}
                               <div>
                                 <p className="text-xs font-medium">{book.title}</p>
@@ -603,13 +638,13 @@ export default function ProfilePage() {
                 {profileData.photos && profileData.photos.length > 1 && (
                   <div className="mt-6">
                     <p className="text-sm text-gray-500 mb-3">Photos</p>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {profileData.photos.slice(1).map((photo: string, i: number) => (
                         <img
                           key={i}
                           src={photo}
                           alt={`Photo ${i + 2}`}
-                          className="w-full h-48 object-cover rounded-lg"
+                          className="w-full h-32 md:h-48 object-cover rounded-lg"
                         />
                       ))}
                     </div>
@@ -746,9 +781,28 @@ export default function ProfilePage() {
         </Card>
       )}
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-        <ProfileForm onSave={() => loadProfile(user.id)} />
-      </div>
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="profile" className="flex items-center gap-2">
+            <Edit className="w-4 h-4" />
+            Edit Profile
+          </TabsTrigger>
+          <TabsTrigger value="boost" className="flex items-center gap-2">
+            <Rocket className="w-4 h-4" />
+            Profile Boost
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile">
+          <Card className="p-6">
+            <ProfileForm onSave={() => loadProfile(user.id)} />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="boost">
+          <ProfileBoost onBoostActivated={() => loadProfile(user.id)} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

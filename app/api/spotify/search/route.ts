@@ -72,6 +72,7 @@ async function getValidAccessToken(userId: string): Promise<string | null> {
   return newAccessToken;
 }
 
+export const dynamic = 'force-dynamic';export const runtime = 'nodejs';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');

@@ -104,6 +104,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
+        // Sync subscription status on login
+        try {
+          const { data: { session: currentSession } } = await supabase!.auth.getSession();
+          if (currentSession?.access_token) {
+            await fetch('/api/subscriptions/refresh', {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${currentSession.access_token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+          }
+        } catch (error) {
+          console.error('Error syncing subscription status on login:', error);
+          // Don't block login if subscription sync fails
+        }
+
         toast.success("Welcome back!");
         // Small delay to let the login page handle its own redirect first
         setTimeout(() => {

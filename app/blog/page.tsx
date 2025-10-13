@@ -206,9 +206,8 @@ export default function BlogPage() {
                   </p>
                 </div>
               </div>
-              {/* TODO: Replace with your actual Telegram channel URL */}
               <a
-                href="https://t.me/lovento_blog"
+                href="https://t.me/loventodate"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="whitespace-nowrap"
@@ -218,7 +217,7 @@ export default function BlogPage() {
                   className="!text-white font-bold shadow-lg hover:shadow-xl hover:scale-105 transform transition-all"
                 >
                   <Send className="w-5 h-5 mr-2" />
-                  Join Channel
+                  Join Telegram
                 </Button>
               </a>
             </div>

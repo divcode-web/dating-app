@@ -95,7 +95,7 @@ INSERT INTO subscription_tiers (
   NULL, -- Unlimited messages
   5, -- 5 super likes per day
   1, -- 1 boost per month
-  FALSE, -- Can't see who likes (saved for higher tiers)
+  TRUE, -- Can see who likes ✅ MOVED TO BASIC
   FALSE, -- No AI matching
   TRUE, -- Can rewind swipes
   TRUE, -- Global dating
@@ -242,7 +242,20 @@ CREATE POLICY "Anyone can view subscription tiers"
 DROP POLICY IF EXISTS "Users can view their own message limits" ON message_limits;
 CREATE POLICY "Users can view their own message limits"
   ON message_limits FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (auth.uid()::text = user_id::text);
+
+-- Users can insert their own message limits
+DROP POLICY IF EXISTS "Users can insert their own message limits" ON message_limits;
+CREATE POLICY "Users can insert their own message limits"
+  ON message_limits FOR INSERT
+  WITH CHECK (auth.uid()::text = user_id::text);
+
+-- Users can update their own message limits
+DROP POLICY IF EXISTS "Users can update their own message limits" ON message_limits;
+CREATE POLICY "Users can update their own message limits"
+  ON message_limits FOR UPDATE
+  USING (auth.uid()::text = user_id::text)
+  WITH CHECK (auth.uid()::text = user_id::text);
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_subscription_tiers_active ON subscription_tiers(is_active, sort_order);
@@ -301,6 +314,18 @@ BEGIN
       SELECT no_ads INTO v_has_access FROM subscription_tiers WHERE id = v_tier_id;
     WHEN 'priority_support' THEN
       SELECT has_priority_support INTO v_has_access FROM subscription_tiers WHERE id = v_tier_id;
+    WHEN 'can_see_online_status' THEN
+      SELECT can_see_online_status INTO v_has_access FROM subscription_tiers WHERE id = v_tier_id;
+    WHEN 'priority_matches' THEN
+      SELECT has_priority_matches INTO v_has_access FROM subscription_tiers WHERE id = v_tier_id;
+    WHEN 'read_receipts' THEN
+      SELECT has_read_receipts INTO v_has_access FROM subscription_tiers WHERE id = v_tier_id;
+    WHEN 'advanced_filters' THEN
+      SELECT has_advanced_filters INTO v_has_access FROM subscription_tiers WHERE id = v_tier_id;
+    WHEN 'profile_boost' THEN
+      SELECT has_profile_boost INTO v_has_access FROM subscription_tiers WHERE id = v_tier_id;
+    WHEN 'unlimited_rewinds' THEN
+      SELECT has_unlimited_rewinds INTO v_has_access FROM subscription_tiers WHERE id = v_tier_id;
     ELSE
       v_has_access := FALSE;
   END CASE;

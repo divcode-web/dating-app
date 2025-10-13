@@ -5,6 +5,8 @@ import { motion, PanInfo, useMotionValue, useTransform } from 'framer-motion'
 import { Heart, X, Star, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useGeolocation } from '@/components/geolocation-provider'
+import { useAuth } from '@/components/auth-provider'
+import { getUserLimits } from '@/lib/subscription-limits'
 
 interface Profile {
   id: string
@@ -28,8 +30,10 @@ export function SwipeCard({ profile, onSwipe, onCardLeave, isTop }: SwipeCardPro
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [showMore, setShowMore] = useState(false)
+  const [canSeeOnlineStatus, setCanSeeOnlineStatus] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   const { location, calculateDistance } = useGeolocation()
+  const { user } = useAuth()
 
   const x = useMotionValue(0)
   const y = useMotionValue(0)
@@ -83,6 +87,25 @@ export function SwipeCard({ profile, onSwipe, onCardLeave, isTop }: SwipeCardPro
     setCurrentPhotoIndex((prev) => (prev - 1 + profile.photos.length) % profile.photos.length)
   }
 
+  // Check user's online status viewing permission
+  useEffect(() => {
+    const checkOnlineStatusPermission = async () => {
+      if (user?.id) {
+        try {
+          const userLimits = await getUserLimits(user.id)
+          setCanSeeOnlineStatus(userLimits.tier.can_see_online_status)
+        } catch (error) {
+          console.error('Error checking online status permission:', error)
+          setCanSeeOnlineStatus(false)
+        }
+      } else {
+        setCanSeeOnlineStatus(false)
+      }
+    }
+
+    checkOnlineStatusPermission()
+  }, [user?.id])
+
   return (
     <motion.div
       ref={cardRef}
@@ -123,8 +146,8 @@ export function SwipeCard({ profile, onSwipe, onCardLeave, isTop }: SwipeCardPro
             ))}
           </div>
 
-          {/* Online indicator */}
-          {profile.isOnline && (
+          {/* Online indicator - Only show if user has permission */}
+          {profile.isOnline && canSeeOnlineStatus && (
             <div className="absolute top-4 right-4 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
           )}
 
@@ -163,7 +186,7 @@ export function SwipeCard({ profile, onSwipe, onCardLeave, isTop }: SwipeCardPro
               <div className="flex items-center space-x-2">
                 <h3 className="text-2xl md:text-3xl font-bold">{profile.name}</h3>
                 <span className="text-xl md:text-2xl">{profile.age}</span>
-                {profile.isOnline && (
+                {profile.isOnline && canSeeOnlineStatus && (
                   <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                 )}
               </div>

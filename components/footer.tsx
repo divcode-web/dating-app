@@ -47,10 +47,10 @@ export function Footer() {
                 </Button>
               </a>
               <a
-                href="https://twitter.com/lovento"
+                href="https://x.com/loventodate?s=21"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Twitter"
+                aria-label="X (Twitter)"
               >
                 <Button
                   variant="ghost"
@@ -110,35 +110,34 @@ export function Footer() {
             <h3 className="text-lg font-semibold">Quick Links</h3>
             <ul className="space-y-2 text-sm text-gray-400">
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/about" className="hover:text-white transition-colors">
                   About Us
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/how-it-works" className="hover:text-white transition-colors">
                   How It Works
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/success-stories" className="hover:text-white transition-colors">
                   Success Stories
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/premium" className="hover:text-white transition-colors">
                   Premium
                 </a>
               </li>
               <li>
-                {/* TODO: Replace with your actual Telegram blog channel URL */}
                 <a
-                  href="https://t.me/lovento_blog"
+                  href="https://t.me/loventodate"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full hover:from-blue-600 hover:to-blue-700 transition-all font-semibold shadow-lg hover:shadow-xl hover:scale-105 transform"
                 >
                   <Send className="w-4 h-4" />
-                  Join Blog Channel
+                  Join Telegram
                 </a>
               </li>
             </ul>
@@ -149,12 +148,12 @@ export function Footer() {
             <h3 className="text-lg font-semibold">Support</h3>
             <ul className="space-y-2 text-sm text-gray-400">
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/help" className="hover:text-white transition-colors">
                   Help Center
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/safety-tips" className="hover:text-white transition-colors">
                   Safety Tips
                 </a>
               </li>
@@ -167,12 +166,12 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/contact" className="hover:text-white transition-colors">
                   Contact Us
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/contact" className="hover:text-white transition-colors">
                   Report a Problem
                 </a>
               </li>
